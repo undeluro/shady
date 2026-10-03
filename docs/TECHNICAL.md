@@ -113,3 +113,11 @@ rg 'mobile-REQUEST-ID' work/shady.log
 Logs intentionally omit search text, raw URLs/query strings, request/response bodies, GPS coordinates, geometry and exception messages. Unexpected backend failures include exception type and stack locations (file/function/line), without source literals. No per-frame, slider-drag or continuous location-fix events are emitted. Queue/compute events describe work done; an aborted phone fetch does not necessarily cancel an already-running backend computation.
 
 For troubleshooting: no backend event for a phone `http.started` points to Wi-Fi/API-address reachability; a high `queue_ms` means another calculation is holding the lock; tile/edge misses explain cold calculations; `request.rejected` gives a mapped-path/coverage error; `location.failed` points to native GPS rather than routing.
+
+## Native route overlay ordering
+
+Apple Maps in react-native-maps 1.27.2 removes and re-adds an overlay when its geometry or style changes. Re-added overlays go above unchanged overlays; `zIndex` is supported by Google Maps, not MapKit. Updating only the route outline could cover shared colored segments, and a viewport shade refresh could tint the route.
+
+`MapCanvas` memoizes one complete, keyed overlay snapshot: shade polygons, white route casing, then all exposure segments. Changing the displayed route or shade geometry replaces these overlays together in that order. Camera/UI renders retain their coordinate objects, and the native map stays mounted, preserving its camera and gestures. Explicit z-index values also maintain the hierarchy on Google Maps.
+
+Regression tests model the native overlay boundary for shared-path switching, viewport updates, shade toggles and camera-only renders. The photographed Old Town route was verified in the iOS simulator with shade on/off, with the previously hidden start section visible.

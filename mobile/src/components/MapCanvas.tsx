@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useRef, useState } from "react";
+import { Fragment, useEffect, useMemo, useRef, useState } from "react";
 import MapView, { Marker, Polygon, Polyline } from "react-native-maps";
 import { StyleSheet, View } from "react-native";
 import type { MapProps } from "./MapCanvas.types";
@@ -40,21 +40,52 @@ function LiveMap(props: MapProps) {
       );
     }
   }, [props.cameraTarget, props.reduceMotion, ready]);
-  const shadowPolygons = useMemo(
-    () =>
-      props.showShade &&
-      props.shadows?.shadows.features.map((f, i) => (
-        <Polygon
-          key={`shade-${i}-${JSON.stringify(f.geometry.coordinates)}`}
-          coordinates={points(f.geometry.coordinates[0])}
-          holes={f.geometry.coordinates.slice(1).map(points)}
-          fillColor="rgba(22,133,117,0.24)"
-          strokeColor="transparent"
-          strokeWidth={1}
-        />
-      )),
-    [props.showShade, props.shadows],
-  );
+  const overlays = useMemo(() => {
+    const shadows = props.showShade ? props.shadows?.shadows : null;
+    // MapKit re-adds updated overlays above unchanged ones, regardless of JSX order.
+    // Replace the complete overlay snapshot together, without remounting the map:
+    // shade first, then casing, then every exposure segment (including shared paths).
+    // Memoized elements also avoid native coordinate/style updates during camera/UI renders.
+    const snapshot = JSON.stringify([shadows, props.route]);
+    return (
+      <Fragment key={snapshot}>
+        {shadows?.features.map((f, i) => (
+          <Polygon
+            key={`shade-${i}`}
+            coordinates={points(f.geometry.coordinates[0])}
+            holes={f.geometry.coordinates.slice(1).map(points)}
+            fillColor="rgba(22,133,117,0.24)"
+            strokeColor="transparent"
+            strokeWidth={1}
+            zIndex={0}
+          />
+        ))}
+        {props.route && (
+          <Polyline
+            coordinates={points(props.route.geometry.coordinates)}
+            strokeColor="#F5FAF8"
+            strokeWidth={9}
+            zIndex={1}
+          />
+        )}
+        {props.route?.segments.features.map((f, i) => (
+          <Polyline
+            key={`route-${i}`}
+            coordinates={points(f.geometry.coordinates)}
+            strokeColor={
+              f.properties.exposure === "shaded"
+                ? "#168575"
+                : f.properties.exposure === "sunny"
+                  ? "#FFC857"
+                  : "#577B74"
+            }
+            strokeWidth={6}
+            zIndex={2}
+          />
+        ))}
+      </Fragment>
+    );
+  }, [props.showShade, props.shadows, props.route]);
   return (
     <MapView
       ref={map}
@@ -74,28 +105,7 @@ function LiveMap(props: MapProps) {
       onLongPress={(e) => props.onPin(e.nativeEvent.coordinate)}
       onRegionChangeComplete={props.onRegion}
     >
-      {shadowPolygons}
-      {props.route && (
-        <Polyline
-          coordinates={points(props.route.geometry.coordinates)}
-          strokeColor="#F5FAF8"
-          strokeWidth={9}
-        />
-      )}
-      {props.route?.segments.features.map((f, i) => (
-        <Polyline
-          key={`route-${i}`}
-          coordinates={points(f.geometry.coordinates)}
-          strokeColor={
-            f.properties.exposure === "shaded"
-              ? "#168575"
-              : f.properties.exposure === "sunny"
-                ? "#FFC857"
-                : "#577B74"
-          }
-          strokeWidth={6}
-        />
-      ))}
+      {overlays}
       {props.location && (
         <Marker
           coordinate={props.location}
