@@ -161,6 +161,28 @@ export default function Home() {
   const [reduceMotion, setReduceMotion] = useState(false);
   const sheet = useRef<BottomSheet>(null);
   const sequence = useRef(0);
+  const searchGeneration = useRef(0);
+  const locationGeneration = useRef(0);
+  const searchController = useRef<AbortController | null>(null);
+  const invalidateOperations = () => {
+    searchGeneration.current++;
+    locationGeneration.current++;
+    searchController.current?.abort();
+    setSearching(false);
+  };
+  const changePanel = (next: typeof panel) => {
+    invalidateOperations();
+    setPanel(next);
+  };
+  useEffect(
+    () => () => {
+      searchGeneration.current++;
+      locationGeneration.current++;
+      searchController.current?.abort();
+    },
+    [],
+  );
+
   const animationConfigs = useBottomSheetSpringConfigs({
     damping: 40,
     stiffness: 400,
@@ -277,9 +299,10 @@ export default function Home() {
     setQuery("");
     setPlaces([]);
     setNotice(null);
-    setPanel("search");
+    changePanel("search");
   };
   const choosePlace = (place: SearchResult) => {
+    invalidateOperations();
     setSaved(null);
     if (searchTarget === "origin") {
       setOrigin(place);
@@ -288,36 +311,48 @@ export default function Home() {
       setDestination(place);
       setDestinationLabel(place.name.split(",")[0]);
     }
-    setPanel(null);
+    changePanel(null);
     feedback();
   };
   const search = async () => {
     if (query.trim().length < 2) return;
+    invalidateOperations();
+    const id = searchGeneration.current;
+    const controller = new AbortController();
+    searchController.current = controller;
     setSearching(true);
     setNotice(null);
     try {
       const r = await apiRequest<{ results: SearchResult[] }>(
         `/v1/search?q=${encodeURIComponent(query.trim())}`,
         BASE,
+        { signal: controller.signal },
       );
+      if (id !== searchGeneration.current) return;
       setPlaces(r.results);
       if (!r.results.length)
         setNotice("No places found inside Kraków. Try a map pin.");
     } catch (e) {
-      setNotice(e instanceof Error ? e.message : "Search unavailable.");
+      if (id === searchGeneration.current)
+        setNotice(e instanceof Error ? e.message : "Search unavailable.");
     } finally {
-      setSearching(false);
+      if (id === searchGeneration.current) setSearching(false);
     }
   };
   const gps = async () => {
+    invalidateOperations();
+    const id = locationGeneration.current;
     setNotice(null);
     try {
       const point = await locateOrigin(Location);
+      if (id !== locationGeneration.current) return;
+      invalidateOperations();
       setSaved(null);
       setOrigin(point);
       setOriginLabel("Your location");
       feedback();
     } catch (e) {
+      if (id !== locationGeneration.current) return;
       setNotice(
         e instanceof Error
           ? e.message
@@ -326,6 +361,7 @@ export default function Home() {
     }
   };
   const selectDemo = (scenario: Scenario) => {
+    invalidateOperations();
     sequence.current++;
     dispatch({ type: "reset" });
     setSaved(scenario);
@@ -334,7 +370,7 @@ export default function Home() {
     setDestination(scenario.destination);
     setDestinationLabel(scenario.title.split(" → ")[1] ?? "Saved walk");
     setDeparture(scenario.departure_at);
-    setPanel(null);
+    changePanel(null);
     setNotice(null);
     sheet.current?.snapToIndex(1);
     feedback();
@@ -342,8 +378,9 @@ export default function Home() {
   const commitTime = (minutes = draftMinutes, close = true) => {
     try {
       setDeparture(warsawDeparture(dateText, minutes));
+      invalidateOperations();
       setSaved(null);
-      if (close) setPanel(null);
+      if (close) changePanel(null);
       setNotice(null);
       feedback();
     } catch (e) {
@@ -360,6 +397,7 @@ export default function Home() {
         shadows={visibleShade}
         showShade={showShade}
         onPin={(point) => {
+          invalidateOperations();
           setSaved(null);
           if (searchTarget === "origin") {
             setOrigin(point);
@@ -396,7 +434,7 @@ export default function Home() {
                 SAVED DEMO
               </Text>
             )}
-            <Button label="About Shady" onPress={() => setPanel("about")}>
+            <Button label="About Shady" onPress={() => changePanel("about")}>
               ⓘ
             </Button>
           </View>
@@ -430,7 +468,7 @@ export default function Home() {
                 }).format(new Date(departure)),
               );
               setNotice(null);
-              setPanel("time");
+              changePanel("time");
             }}
           >
             {Math.abs(clock - Date.parse(departure)) < 600000
@@ -453,6 +491,7 @@ export default function Home() {
             accessibilityRole="button"
             accessibilityLabel="Switch to live planning"
             onPress={() => {
+              invalidateOperations();
               setSaved(null);
               dispatch({ type: "reset" });
             }}
@@ -650,7 +689,7 @@ export default function Home() {
         visible={panel !== null}
         transparent
         animationType={reduceMotion ? "none" : "fade"}
-        onRequestClose={() => setPanel(null)}
+        onRequestClose={() => changePanel(null)}
       >
         <View style={s.modalBackdrop}>
           <View style={[s.modal, { paddingBottom: insets.bottom + 24 }]}>
@@ -664,7 +703,7 @@ export default function Home() {
                     ? "Chase a little shade"
                     : "Meet Shady."}
               </Text>
-              <Button label="Close" onPress={() => setPanel(null)}>
+              <Button label="Close" onPress={() => changePanel(null)}>
                 ×
               </Button>
             </View>
@@ -705,7 +744,7 @@ export default function Home() {
                 <Button
                   label="Choose on map"
                   onPress={() => {
-                    setPanel(null);
+                    changePanel(null);
                     setNotice(
                       `Long press the map to choose your ${searchTarget === "origin" ? "start" : "destination"}.`,
                     );
@@ -739,9 +778,10 @@ export default function Home() {
                   <Button
                     label="Now"
                     onPress={() => {
+                      invalidateOperations();
                       setSaved(null);
                       setDeparture(new Date().toISOString());
-                      setPanel(null);
+                      changePanel(null);
                     }}
                   />
                   <Button label="Show this time" onPress={() => commitTime()} />

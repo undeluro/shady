@@ -43,6 +43,8 @@ test("a new request retains the previous result with an updating state", () => {
   });
   expect(state.error).toBe("No path");
   expect(state.status).toBe("error");
+  expect(state.result).toBeNull();
+  expect(state.shade).toBeNull();
   expect(
     planningReducer(state, { type: "select", profile: "shortest" }).selected,
   ).toBe("shortest");

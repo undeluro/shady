@@ -5,9 +5,20 @@ import {
   screen,
   waitFor,
   cleanup,
+  act,
 } from "@testing-library/react-native";
-import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
+import {
+  QueryClient,
+  QueryClientProvider,
+  notifyManager,
+} from "@tanstack/react-query";
 import Home from "../app/index";
+import demos from "../data/demo.json";
+import * as Location from "expo-location";
+jest.mock("expo-location", () => ({
+  requestForegroundPermissionsAsync: jest.fn(),
+  getCurrentPositionAsync: jest.fn(),
+}));
 jest.mock("react-native-safe-area-context", () => ({
   useSafeAreaInsets: () => ({ top: 0, bottom: 0, left: 0, right: 0 }),
 }));
@@ -33,6 +44,8 @@ jest.mock("@gorhom/bottom-sheet", () => {
 });
 const clients: QueryClient[] = [];
 const fetchBefore = globalThis.fetch;
+beforeAll(() => notifyManager.setNotifyFunction((callback) => act(callback)));
+afterAll(() => notifyManager.setNotifyFunction((callback) => callback()));
 beforeEach(() => {
   globalThis.fetch = jest.fn().mockResolvedValue({
     ok: true,
@@ -93,12 +106,10 @@ test("search is submitted explicitly and failures never create a demo", async ()
 });
 
 test("a saved walk works with the backend offline and going live shows its real failure", async () => {
-  globalThis.fetch = jest
-    .fn()
-    .mockResolvedValue({
-      ok: false,
-      json: async () => ({ error: { message: "Live server offline" } }),
-    });
+  globalThis.fetch = jest.fn().mockResolvedValue({
+    ok: false,
+    json: async () => ({ error: { message: "Live server offline" } }),
+  });
   mount();
   fireEvent.press(screen.getByText("13:00"));
   await screen.findByText("SAVED DEMO");
@@ -116,4 +127,122 @@ test("a saved walk works with the backend offline and going live shows its real 
     ),
   );
   expect(screen.queryByText("SAVED DEMO")).toBeNull();
+});
+
+function deferred<T>() {
+  let resolve!: (value: T) => void;
+  const promise = new Promise<T>((done) => {
+    resolve = done;
+  });
+  return { promise, resolve };
+}
+test("a destination search cannot populate a newly opened origin panel", async () => {
+  const old = deferred<any>();
+  globalThis.fetch = jest
+    .fn()
+    .mockImplementation((url: string) =>
+      url.includes("/search")
+        ? old.promise
+        : Promise.resolve({ ok: true, json: async () => ({ sources: [] }) }),
+    );
+  mount();
+  fireEvent.press(screen.getByRole("button", { name: "Search destination" }));
+  fireEvent.changeText(
+    screen.getByLabelText("Submitted address search"),
+    "Wawel",
+  );
+  fireEvent.press(screen.getByRole("button", { name: "Search" }));
+  fireEvent.press(screen.getByRole("button", { name: "Close" }));
+  fireEvent.press(
+    screen.getByRole("button", { name: "Change starting point" }),
+  );
+  await act(async () =>
+    old.resolve({
+      ok: true,
+      json: async () => ({
+        results: [
+          {
+            id: "old",
+            name: "Old destination result",
+            latitude: 50,
+            longitude: 20,
+          },
+        ],
+      }),
+    }),
+  );
+  expect(screen.queryByText("Old destination result")).toBeNull();
+});
+test("late GPS cannot replace a deliberately selected saved walk", async () => {
+  const location = deferred<any>();
+  (Location.requestForegroundPermissionsAsync as jest.Mock).mockResolvedValue({
+    status: "granted",
+  });
+  (Location.getCurrentPositionAsync as jest.Mock).mockReturnValue(
+    location.promise,
+  );
+  mount();
+  fireEvent.press(screen.getByRole("button", { name: "Use my location" }));
+  await waitFor(() =>
+    expect(Location.getCurrentPositionAsync).toHaveBeenCalled(),
+  );
+  fireEvent.press(screen.getByText("13:00"));
+  await screen.findByText("SAVED DEMO");
+  await act(async () =>
+    location.resolve({ coords: { latitude: 50.1, longitude: 20 } }),
+  );
+  expect(screen.getByText("SAVED DEMO")).toBeTruthy();
+  expect(screen.queryByText(/From Your location/)).toBeNull();
+});
+
+test("a failed replan clears old route cards instead of pairing them with new endpoints", async () => {
+  let routes = 0,
+    searches = 0;
+  const fixture = demos.scenarios[1];
+  globalThis.fetch = jest.fn().mockImplementation((url: string) => {
+    let data: any = { sources: [] },
+      ok = true;
+    if (url.includes("/routes")) {
+      routes++;
+      ok = routes === 1;
+      data = ok
+        ? fixture.result
+        : { error: { message: "New destination has no path" } };
+    } else if (url.includes("/shade")) data = fixture.shade;
+    else if (url.includes("/search")) {
+      searches++;
+      data = {
+        results: [
+          {
+            id: String(searches),
+            name: searches === 1 ? "First destination B" : "New destination C",
+            latitude: searches === 1 ? 50.0542 : 50.1,
+            longitude: 19.9356,
+          },
+        ],
+      };
+    }
+    return Promise.resolve({ ok, json: async () => data });
+  });
+  mount();
+  const chooseDestination = async (name: string) => {
+    fireEvent.press(screen.getByRole("button", { name: "Search destination" }));
+    fireEvent.changeText(
+      screen.getByLabelText("Submitted address search"),
+      name,
+    );
+    fireEvent.press(screen.getByRole("button", { name: "Search" }));
+    fireEvent.press(await screen.findByText(name));
+  };
+  await chooseDestination("First destination B");
+  await screen.findByRole("button", { name: /More shade,/ });
+  await chooseDestination("New destination C");
+  await waitFor(() =>
+    expect(
+      screen.getAllByText("New destination has no path").length,
+    ).toBeGreaterThan(0),
+  );
+  expect(screen.queryByRole("button", { name: /More shade,/ })).toBeNull();
+  expect(screen.queryByRole("button", { name: /Shortest,/ })).toBeNull();
+  expect(screen.getByText("New destination C")).toBeTruthy();
 });

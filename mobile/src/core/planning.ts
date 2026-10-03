@@ -45,7 +45,13 @@ export function planningReducer(
         : state;
     case "failure":
       return event.id === state.requestId
-        ? { ...state, status: "error", error: event.message }
+        ? {
+            ...state,
+            status: "error",
+            error: event.message,
+            result: null,
+            shade: null,
+          }
         : state;
     case "select":
       return { ...state, selected: event.profile };

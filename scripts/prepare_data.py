@@ -14,6 +14,7 @@ from shapely.geometry import shape
 from shapely.ops import transform
 
 from shady.importer import read_citygml
+from shady.network import clip_graph, pedestrian_graph
 
 ROOT = Path(__file__).resolve().parents[1]
 RAW, OUT = ROOT / "data/raw", ROOT / "data/processed"
@@ -31,6 +32,22 @@ def graph():
     ox.settings.cache_folder = str(RAW / "osm-cache")
     ox.settings.requests_timeout = 180
     ox.settings.http_user_agent = "ShadyHackathon/0.1 local walking data preparation"
+    ox.settings.useful_tags_way = list(
+        set(ox.settings.useful_tags_way)
+        | {
+            "foot",
+            "access",
+            "area",
+            "service",
+            "sidewalk",
+            "sidewalk:both",
+            "sidewalk:left",
+            "sidewalk:right",
+            "oneway:foot",
+            "foot:forward",
+            "foot:backward",
+        }
+    )
     last = None
     for host in [
         "regional extract",
@@ -40,36 +57,23 @@ def graph():
         try:
             ox.settings.overpass_url = host
             g = (
-                ox.graph_from_xml(RAW / "walk.osm", bidirectional=True, retain_all=True)
+                ox.graph_from_xml(
+                    RAW / "walk.osm",
+                    bidirectional=True,
+                    retain_all=True,
+                    simplify=False,
+                )
                 if host == "regional extract"
-                else ox.graph.graph_from_polygon(boundary, network_type="walk", retain_all=True)
+                else ox.graph.graph_from_polygon(
+                    boundary, network_type="walk", retain_all=True, simplify=False
+                )
+            )
+            pedestrian_graph(g)
+            g = ox.simplify_graph(
+                g, edge_attrs_differ=["oneway:foot", "foot:forward", "foot:backward"]
             )
             g = ox.projection.project_graph(g, to_crs="EPSG:2180")
-            # Citywide public coverage is polygon-defined, including every component.
-            remove = []
-            for u, v, k, d in g.edges(keys=True, data=True):
-                from shapely.geometry import LineString
-
-                geom = d.get(
-                    "geometry",
-                    LineString(
-                        [
-                            (g.nodes[u]["x"], g.nodes[u]["y"]),
-                            (g.nodes[v]["x"], g.nodes[v]["y"]),
-                        ]
-                    ),
-                )
-                if not local_boundary.covers(geom):
-                    remove.append((u, v, k))
-                else:
-                    d["geometry"] = geom
-                    d["length"] = geom.length
-            g.remove_edges_from(remove)
-            g.remove_nodes_from(
-                list(ox.utils_graph.isolates(g))
-                if hasattr(ox, "utils_graph")
-                else [n for n in g if g.degree(n) == 0]
-            )
+            clip_graph(g, local_boundary)
             ox.save_graphml(g, path)
             return g
         except Exception as error:

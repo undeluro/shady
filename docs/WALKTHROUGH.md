@@ -8,3 +8,5 @@
 7. Mention citywide OSM coverage, real LoD1 buildings, the 25% detour cap, and the current long-route latency limitation.
 
 The saved recordings/frames document the browser preview. Physical phone verification is still required before presenting native performance claims.
+
+Recorded browser preview: [shady-walkthrough.gif](shady-walkthrough.gif), seven captured states over 20.5 seconds. This is a browser walkthrough, not a physical-device performance recording.
