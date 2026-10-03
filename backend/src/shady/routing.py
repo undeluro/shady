@@ -1,9 +1,13 @@
 """Routing on the mapped walking network; calculations stay in meter coordinates."""
 
+import time
+
 import networkx as nx
 from shapely import STRtree
 from shapely.geometry import LineString, Point, mapping
 from shapely.ops import substring
+
+from .diagnostics import event
 
 
 class RouteError(ValueError):
@@ -92,6 +96,7 @@ class RoutePlanner:
         return graph, points
 
     def plan(self, origin, destination, departure):
+        started = time.perf_counter()
         at, _, _, status = self.shade.context(departure)
         graph, points = self._snapped_graph(origin, destination)
         source, target = points[0][0], points[1][0]
@@ -102,6 +107,11 @@ class RoutePlanner:
                 "no_path", "These points have no connected mapped walking route."
             ) from error
         distance = self._path_length(graph, shortest, 0)
+        event(
+            "routes.shortest",
+            distance_m=round(distance, 2),
+            duration_ms=round((time.perf_counter() - started) * 1000, 2),
+        )
         limit = distance * 1.25
         forward = nx.single_source_dijkstra_path_length(
             graph, source, cutoff=limit, weight="length"
@@ -124,6 +134,11 @@ class RoutePlanner:
                 eligible.add_edge(
                     u, v, key=k, **{**data, "shaded": shaded, "sunny": data["length"] - shaded}
                 )
+        event(
+            "routes.eligible",
+            edges=eligible.number_of_edges(),
+            duration_ms=round((time.perf_counter() - started) * 1000, 2),
+        )
         candidates = []
         for penalty in (0, 1, 2, 4, 8, 16, 32):
             path = nx.shortest_path(eligible, source, target, weight=self._weight(penalty))
@@ -132,6 +147,11 @@ class RoutePlanner:
             sunny = sum(data["sunny"] for data in edges)
             if length <= limit + 1e-7:
                 candidates.append((sunny, length, edges))
+        event(
+            "routes.candidates",
+            candidates=len(candidates),
+            duration_ms=round((time.perf_counter() - started) * 1000, 2),
+        )
         shortest_edges = self._path_edges(eligible, shortest, 0)
         best = min(candidates, key=lambda p: (round(p[0], 7), round(p[1], 7)))[2]
         routes = [

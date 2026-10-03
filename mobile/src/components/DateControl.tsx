@@ -35,7 +35,8 @@ export default function DateControl({
           display="compact"
           themeVariant="light"
           accentColor="#168575"
-          onChange={update}
+          onValueChange={update}
+          onDismiss={() => setOpen(false)}
         />
       ) : (
         <>
@@ -53,7 +54,12 @@ export default function DateControl({
             <Text style={{ color: "#123B35" }}>{date}</Text>
           </Pressable>
           {open && (
-            <DateTimePicker value={value} mode="date" onChange={update} />
+            <DateTimePicker
+              value={value}
+              mode="date"
+              onValueChange={update}
+              onDismiss={() => setOpen(false)}
+            />
           )}
         </>
       )}

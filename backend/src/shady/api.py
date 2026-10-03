@@ -14,6 +14,7 @@ from shapely.geometry import Point, box, mapping, shape
 from shapely.ops import transform
 
 from .dataset import TO_GEO, TO_LOCAL, load_dataset
+from .diagnostics import configure_logging, event, failure, new_request_id, request_id
 from .routing import RouteError
 
 ROOT = Path(__file__).resolve().parents[3]
@@ -53,12 +54,16 @@ class Geocoder:
         key = query.strip().casefold()
         async with self.lock:
             if key in self.cache:
+                event("search.cache_hit", results=len(self.cache[key]))
                 return self.cache[key]
+            event("search.cache_miss")
             delay = 1 - (self.clock() - self.last)
             if delay > 0:
+                event("search.rate_limit_wait", duration_ms=round(delay * 1000, 2))
                 await asyncio.sleep(delay)
             self.last = self.clock()
             left, bottom, right, top = self.boundary.bounds
+            started = time.perf_counter()
             response = await self.client.get(
                 os.getenv("SHADY_GEOCODER_URL", "https://nominatim.openstreetmap.org/search"),
                 params={
@@ -69,6 +74,11 @@ class Geocoder:
                     "bounded": 1,
                     "viewbox": f"{left},{top},{right},{bottom}",
                 },
+            )
+            event(
+                "search.provider_response",
+                status=response.status_code,
+                duration_ms=round((time.perf_counter() - started) * 1000, 2),
             )
             response.raise_for_status()
             payload = response.json()
@@ -89,6 +99,7 @@ class Geocoder:
             if self.cache_file:
                 self.cache_file.parent.mkdir(parents=True, exist_ok=True)
                 self.cache_file.write_text(json.dumps(self.cache))
+            event("search.completed", results=len(places))
             return places
 
     async def close(self):
@@ -110,6 +121,9 @@ def create_app(dataset=None, data_dir=None, geocoder=None):
 
     @asynccontextmanager
     async def lifespan(app):
+        configure_logging(ROOT / "work/shady.log")
+        started = time.perf_counter()
+        event("dataset.loading")
         app.state.dataset = dataset
         app.state.load_error = None
         if dataset is None:
@@ -117,6 +131,13 @@ def create_app(dataset=None, data_dir=None, geocoder=None):
                 app.state.dataset = await asyncio.to_thread(load_dataset, directory)
             except (FileNotFoundError, OSError, ValueError) as error:
                 app.state.load_error = str(error)
+                failure("dataset.failed", error)
+        ds = app.state.dataset
+        event(
+            "dataset.ready" if ds else "dataset.unavailable",
+            duration_ms=round((time.perf_counter() - started) * 1000, 2),
+            dataset_version=ds.manifest["dataset_version"] if ds else None,
+        )
         app.state.compute_lock = asyncio.Lock()
         app.state.geocoder = geocoder
         if app.state.dataset and geocoder is None:
@@ -126,14 +147,20 @@ def create_app(dataset=None, data_dir=None, geocoder=None):
         yield
         if app.state.geocoder:
             await app.state.geocoder.close()
+        event("server.stopped")
 
     app = FastAPI(title="Shady Kraków", version="0.1.0", lifespan=lifespan)
     app.add_middleware(
-        CORSMiddleware, allow_origins=["*"], allow_methods=["GET", "POST"], allow_headers=["*"]
+        CORSMiddleware,
+        allow_origins=["*"],
+        allow_methods=["GET", "POST"],
+        allow_headers=["*"],
+        expose_headers=["X-Request-ID"],
     )
 
     @app.exception_handler(RouteError)
     async def route_error(request, error):
+        event("request.rejected", level="WARNING", code=error.code)
         return JSONResponse(
             status_code=422, content={"error": {"code": error.code, "message": str(error)}}
         )
@@ -159,6 +186,71 @@ def create_app(dataset=None, data_dir=None, geocoder=None):
                 },
             )
         return await call_next(request)
+
+    @app.middleware("http")
+    async def diagnostics(request, call_next):
+        correlation = new_request_id(request.headers.get("X-Request-ID"))
+        token = request_id.set(correlation)
+        started = time.perf_counter()
+        # Restrict logged paths to known API names; never log a query or arbitrary URL.
+        path = (
+            request.url.path
+            if request.url.path
+            in {
+                "/health",
+                "/v1/metadata",
+                "/v1/search",
+                "/v1/routes",
+                "/v1/shade",
+                "/docs",
+                "/openapi.json",
+            }
+            else "other"
+        )
+        event("http.started", path=path, method=request.method)
+        try:
+            try:
+                response = await call_next(request)
+            except Exception as error:
+                failure("http.failed", error)
+                response = JSONResponse(
+                    status_code=500,
+                    content={
+                        "error": {
+                            "code": "internal_error",
+                            "message": "The server could not complete this request.",
+                        }
+                    },
+                )
+            response.headers["X-Request-ID"] = correlation
+            event(
+                "http.completed",
+                path=path,
+                method=request.method,
+                status=response.status_code,
+                duration_ms=round((time.perf_counter() - started) * 1000, 2),
+                level="ERROR" if response.status_code >= 500 else "INFO",
+            )
+            return response
+        finally:
+            request_id.reset(token)
+
+    async def compute(request, name, operation, *args):
+        queued = time.perf_counter()
+        event(name + ".queued")
+        async with request.app.state.compute_lock:
+            started = time.perf_counter()
+            engine = request.app.state.dataset.planner.shade
+            before = engine.stats.copy()
+            event(name + ".started", queue_ms=round((started - queued) * 1000, 2))
+            result = await asyncio.to_thread(operation, *args)
+            event(
+                name + ".completed",
+                queue_ms=round((started - queued) * 1000, 2),
+                compute_ms=round((time.perf_counter() - started) * 1000, 2),
+                **{key: engine.stats[key] - before[key] for key in before},
+            )
+            return result
 
     @app.get("/health")
     async def health(request: Request):
@@ -186,10 +278,18 @@ def create_app(dataset=None, data_dir=None, geocoder=None):
         ds = get_dataset(request)
         origin = TO_LOCAL(body.origin.longitude, body.origin.latitude)
         destination = TO_LOCAL(body.destination.longitude, body.destination.latitude)
-        async with request.app.state.compute_lock:
-            result = await asyncio.to_thread(
-                ds.planner.plan, origin, destination, body.departure_at
-            )
+        result = await compute(
+            request, "routes", ds.planner.plan, origin, destination, body.departure_at
+        )
+        event(
+            "routes.result",
+            effective_at=result["effective_at"],
+            dataset_version=result["dataset_version"],
+            shade_status=result["shade_status"],
+            recommendation=result["recommendation_status"],
+            distance_m=result["routes"][0]["distance_m"],
+            sunny_m_saved=result["sunny_m_saved"],
+        )
         return geographic_routes(result)
 
     @app.get("/v1/shade")
@@ -208,8 +308,7 @@ def create_app(dataset=None, data_dir=None, geocoder=None):
         detail = zoom >= 14 and not area.is_empty and area.area <= 16_000_000
         features = []
         if detail and status == "available":
-            async with request.app.state.compute_lock:
-                geometry = await asyncio.to_thread(ds.planner.shade.geometry_for, area, at)
+            geometry = await compute(request, "shade", ds.planner.shade.geometry_for, area, at)
             geometry = geometry.simplify(0.75, preserve_topology=True)
             geometry = transform(TO_GEO, geometry).intersection(ds.boundary_geo)
             parts = (
@@ -220,6 +319,13 @@ def create_app(dataset=None, data_dir=None, geocoder=None):
                 for p in parts
                 if p.geom_type == "Polygon" and not p.is_empty
             ]
+        event(
+            "shade.result",
+            effective_at=at.isoformat(),
+            detail_available=detail,
+            shade_status=status,
+            polygons=len(features),
+        )
         return {
             "effective_at": at.isoformat(),
             "dataset_version": ds.manifest["dataset_version"],
@@ -234,7 +340,8 @@ def create_app(dataset=None, data_dir=None, geocoder=None):
             raise RouteError("invalid_query", "Enter at least two characters.")
         try:
             return {"results": await request.app.state.geocoder.search(q)}
-        except (httpx.HTTPError, ValueError, KeyError, TypeError):
+        except (httpx.HTTPError, ValueError, KeyError, TypeError) as error:
+            failure("search.failed", error)
             return JSONResponse(
                 status_code=503,
                 content={

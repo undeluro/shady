@@ -1,3 +1,4 @@
+import { logEvent } from "../diagnostics/logger";
 import { isValidElement, useEffect, useReducer, useRef, useState } from "react";
 import {
   ActivityIndicator,
@@ -228,6 +229,7 @@ export default function Home() {
     if (saved || !destination) return;
     const id = String(++sequence.current);
     const controller = new AbortController();
+    logEvent("planning.requested", { generation: id });
     dispatch({ type: "request", id });
     queryClient
       .fetchQuery({
@@ -253,6 +255,10 @@ export default function Home() {
       })
       .then((snapshot) => {
         if (!controller.signal.aborted) {
+          logEvent("planning.committed", {
+            generation: id,
+            effective_at: snapshot.route.effective_at,
+          });
           dispatch({
             type: "success",
             id,
@@ -274,6 +280,7 @@ export default function Home() {
           });
       });
     return () => {
+      logEvent("planning.cancelled", { generation: id }, "debug");
       controller.abort();
       void queryClient.cancelQueries({
         queryKey: ["route", origin, destination, timeBucket(departure), retry],
@@ -314,6 +321,7 @@ export default function Home() {
   };
   const choose = (profile: "shortest" | "shaded") => {
     feedback();
+    logEvent("route.selected", { profile });
     dispatch({ type: "select", profile });
   };
   const openSearch = (target: "origin" | "destination") => {
@@ -388,6 +396,10 @@ export default function Home() {
     sequence.current++;
     dispatch({ type: "reset" });
     setCameraTarget(undefined);
+    logEvent("mode.changed", {
+      mode: "saved",
+      effective_at: scenario.result.effective_at,
+    });
     setSaved(scenario);
     setOrigin(scenario.origin);
     setOriginLabel(scenario.title.split(" → ")[0]);
@@ -401,7 +413,9 @@ export default function Home() {
   };
   const commitTime = (minutes = draftMinutes, close = true) => {
     try {
-      setDeparture(warsawDeparture(dateText, minutes));
+      const at = warsawDeparture(dateText, minutes);
+      logEvent("time.committed", { effective_at: timeBucket(at) });
+      setDeparture(at);
       invalidateOperations();
       setSaved(null);
       if (close) changePanel(null);
@@ -499,8 +513,7 @@ export default function Home() {
           >
             {Math.abs(clock - Date.parse(departure)) < 600000
               ? "Now"
-              : timeFormatter.format(new Date(departure))}{" "}
-            ˅
+              : timeFormatter.format(new Date(departure))}
           </Button>
         </View>
         <Pressable
@@ -659,6 +672,10 @@ export default function Home() {
                       marginTop: 12,
                     }}
                     onPress={() => {
+                      logEvent("navigation.opened", {
+                        mode: saved ? "saved" : "live",
+                        profile: route.profile,
+                      });
                       startWalk({
                         origin,
                         destination,

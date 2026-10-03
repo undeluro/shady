@@ -1,3 +1,4 @@
+import { logEvent } from "../diagnostics/logger";
 import { useEffect, useRef, useState } from "react";
 import {
   AccessibilityInfo,
@@ -24,6 +25,7 @@ export default function Navigation() {
   const insets = useSafeAreaInsets();
   const [position, setPosition] = useState<WalkingFix | null>(null),
     [progress, setProgress] = useState<WalkProgress | null>(null);
+  const navigationStatus = useRef("waiting");
   const previous = useRef(0),
     follow = useRef(true),
     sequence = useRef(0);
@@ -70,6 +72,15 @@ export default function Navigation() {
           setError("Waiting for a more accurate location…");
           return;
         }
+        const status = next.arrived
+          ? "arrived"
+          : next.offRoute
+            ? "off_route"
+            : "on_route";
+        if (status !== navigationStatus.current) {
+          navigationStatus.current = status;
+          logEvent("navigation.status", { stage: status });
+        }
         setError(null);
         setPosition(fix);
         setProgress(next);
@@ -102,7 +113,10 @@ export default function Navigation() {
     1,
     Math.round((progress?.remaining_s ?? session.route.duration_s) / 60),
   );
-  const stop = () => router.back();
+  const stop = () => {
+    logEvent("navigation.closed", { mode: saved ? "saved" : "live" });
+    router.back();
+  };
   return (
     <View style={s.root}>
       <MapCanvas

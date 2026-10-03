@@ -280,7 +280,8 @@ test("the exposure legend appears only for a displayed route", async () => {
 });
 test("the departure control renders its mixed text children in a text container", () => {
   mount();
-  expect(screen.getByText(/Now/)).toBeTruthy();
+  expect(screen.getByText("Now")).toBeTruthy();
+  expect(screen.queryByText(/˅/)).toBeNull();
 });
 test("starting a saved preview passes the selected route and its effective snapshot to navigation", async () => {
   let selected: any;

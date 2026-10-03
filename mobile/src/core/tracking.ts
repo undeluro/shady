@@ -1,3 +1,4 @@
+import { logEvent } from "../diagnostics/logger";
 import type { Coordinate } from "./types";
 export type WalkingFix = Coordinate & { accuracy: number | null };
 type TrackingBoundary = {
@@ -12,18 +13,22 @@ export function startTracking(
   onFix: (fix: WalkingFix) => void,
   onError: (message: string) => void,
 ): () => void {
+  logEvent("tracking.requested");
   let active = true,
     subscription: { remove: () => void } | undefined;
   const fail = () => {
-    if (active)
+    if (active) {
+      logEvent("tracking.failed", {}, "warn");
       onError(
         "Location is unavailable. Check Location Services and try again.",
       );
+    }
   };
   void (async () => {
     try {
       const permission = await location.requestForegroundPermissionsAsync();
       if (!active) return;
+      logEvent("tracking.permission", { permission: permission.status });
       if (permission.status !== "granted") {
         onError("Location access is off. Allow location to follow your walk.");
         return;
@@ -32,7 +37,10 @@ export function startTracking(
         if (active) onFix(fix);
       }, fail);
       if (!active) started.remove();
-      else subscription = started;
+      else {
+        subscription = started;
+        logEvent("tracking.started");
+      }
     } catch {
       fail();
     }
@@ -40,5 +48,6 @@ export function startTracking(
   return () => {
     active = false;
     subscription?.remove();
+    logEvent("tracking.stopped");
   };
 }

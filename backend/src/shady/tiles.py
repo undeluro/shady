@@ -20,6 +20,7 @@ class ShadeEngine:
         self.cache = OrderedDict()
         self.max_tiles = max_tiles
         self.edge_cache = OrderedDict()
+        self.stats = dict(tile_hits=0, tile_misses=0, edge_hits=0, edge_misses=0)
 
     def context(self, at):
         at = bucket(at)
@@ -31,8 +32,10 @@ class ShadeEngine:
         at, elevation, azimuth, status = self.context(at)
         key = (self.version, at, x, y)
         if key in self.cache:
+            self.stats["tile_hits"] += 1
             self.cache.move_to_end(key)
             return self.cache[key]
+        self.stats["tile_misses"] += 1
         bounds = box(x * TILE_SIZE, y * TILE_SIZE, (x + 1) * TILE_SIZE, (y + 1) * TILE_SIZE)
         result = Polygon()
         if status == "available":
@@ -64,8 +67,10 @@ class ShadeEngine:
     def shaded_length(self, line, at):
         key = (bucket(at), line.normalize().wkb)
         if key in self.edge_cache:
+            self.stats["edge_hits"] += 1
             self.edge_cache.move_to_end(key)
             return self.edge_cache[key]
+        self.stats["edge_misses"] += 1
         value = line.intersection(self.geometry_for(line.envelope.buffer(0.01), at)).length
         self.edge_cache[key] = value
         if len(self.edge_cache) > 50000:

@@ -224,3 +224,97 @@ def test_search_rejects_malformed_provider_data_and_caps_results(tmp_path):
     )
     with TestClient(create_app(ds, tmp_path, geocoder)) as client:
         assert len(client.get("/v1/search", params={"q": "Wawel"}).json()["results"]) == 5
+
+
+def test_route_logs_correlate_timings_and_cache_without_private_input(tmp_path, caplog):
+    import logging
+
+    caplog.set_level(logging.INFO, logger="shady")
+    payload = {
+        "origin": {"latitude": 50.06, "longitude": 19.938},
+        "destination": {"latitude": 50.06, "longitude": 19.941},
+        "departure_at": "2026-07-01T13:09:00+02:00",
+    }
+    with TestClient(create_app(dataset(), data_dir=tmp_path)) as client:
+        first = client.post("/v1/routes", json=payload, headers={"X-Request-ID": "phone-test-1"})
+        assert first.headers["X-Request-ID"] == "phone-test-1"
+        second = client.post("/v1/routes", json=payload, headers={"X-Request-ID": "phone-test-2"})
+        assert second.status_code == 200
+    records = [json.loads(r.message) for r in caplog.records if r.name == "shady"]
+    completed = [r for r in records if r["event"] == "http.completed"]
+    assert completed[0]["request_id"] == "phone-test-1"
+    assert completed[0]["duration_ms"] >= 0
+    assert completed[0]["status"] == 200
+    planned = [r for r in records if r["event"] == "routes.completed"]
+    assert planned[0]["request_id"] == "phone-test-1"
+    assert planned[0]["tile_misses"] > 0
+    assert planned[1]["edge_hits"] > 0
+    assert planned[1]["queue_ms"] >= 0
+    assert any(
+        r["event"] == "routes.eligible" and r["request_id"] == "phone-test-1" for r in records
+    )
+    serialized = json.dumps(records)
+    assert "19.938" not in serialized
+    assert '"origin"' not in serialized
+
+
+def test_logs_preserve_explicit_errors_and_do_not_log_search_text(tmp_path, caplog):
+    import logging
+
+    caplog.set_level(logging.INFO, logger="shady")
+    with TestClient(create_app(dataset(), data_dir=tmp_path)) as client:
+        invalid = client.get(
+            "/v1/search", params={"q": " "}, headers={"X-Request-ID": "invalid id!"}
+        )
+        assert invalid.status_code == 422
+        assert invalid.headers["X-Request-ID"] != "invalid id!"
+        response = client.get(
+            "/v1/shade", params={"bbox": "private-address", "departure_at": "2026-07-01T13:00:00Z"}
+        )
+        assert response.status_code == 422
+    records = [json.loads(r.message) for r in caplog.records if r.name == "shady"]
+    assert any(r["event"] == "request.rejected" and r["code"] == "invalid_bbox" for r in records)
+    assert any(r["event"] == "http.completed" and r["status"] == 422 for r in records)
+    assert "private-address" not in json.dumps(records)
+
+
+def test_unexpected_computation_error_is_correlated_and_sanitized(tmp_path, caplog):
+    import logging
+
+    caplog.set_level(logging.INFO, logger="shady")
+    ds = dataset()
+
+    def broken(*args):
+        raise RuntimeError("Secret address at 19.938")
+
+    ds.planner.plan = broken
+    with TestClient(create_app(ds, data_dir=tmp_path)) as client:
+        response = client.post(
+            "/v1/routes",
+            json={
+                "origin": {"latitude": 50.06, "longitude": 19.938},
+                "destination": {"latitude": 50.06, "longitude": 19.941},
+                "departure_at": "2026-07-01T13:09:00+02:00",
+            },
+            headers={"X-Request-ID": "broken-test"},
+        )
+    assert response.status_code == 500
+    assert response.headers["X-Request-ID"] == "broken-test"
+    records = [json.loads(r.message) for r in caplog.records if r.name == "shady"]
+    failed = next(r for r in records if r["event"] == "http.failed")
+    assert failed["request_id"] == "broken-test"
+    assert failed["error_type"] == "RuntimeError"
+    assert failed["frames"][-1]["function"] == "broken"
+    assert "Secret address" not in json.dumps(records)
+
+
+def test_log_file_failure_does_not_stop_server_startup(tmp_path, monkeypatch, caplog):
+    import logging
+
+    caplog.set_level(logging.INFO, logger="shady")
+    blocked = tmp_path / "file"
+    blocked.write_text("not a directory")
+    monkeypatch.setenv("SHADY_LOG_FILE", str(blocked / "shady.log"))
+    with TestClient(create_app(dataset(), data_dir=tmp_path)) as client:
+        assert client.get("/health").json()["ready"]
+    assert any('"logging.file_unavailable"' in r.message for r in caplog.records)

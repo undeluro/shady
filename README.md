@@ -1,78 +1,74 @@
-# Shady ☀︎
-A cooler walk through Kraków. React Native + Expo, with a Python citywide shade-routing backend.
+<p align="center">
+  <img src="media/mascot.svg" width="120" alt="Shady's smiling sun mascot" />
+</p>
+<h1 align="center">shady.</h1>
+<p align="center"><strong>A little shade goes a long way.</strong><br/>A cooler way to explore Kraków, one walk at a time.</p>
 
-## Run on a phone
-Prerequisites: Node 22+, uv, Python 3.12, and an Expo Go version supporting SDK 57 (or an Expo development build). Phone and laptop must share Wi-Fi or a hotspot.
+<p align="center">
+  <a href="#the-idea">The idea</a> · <a href="#try-shady">Try Shady</a> · <a href="#take-it-for-a-walk">Take it for a walk</a> · <a href="docs/TECHNICAL.md">Under the hood</a>
+</p>
+
+<table>
+  <tr><th align="center">Shortest</th><th align="center">More shade</th></tr>
+  <tr>
+    <td align="center"><img src="media/shortest.png" width="320" alt="Shady on iPhone: the shortest path, with sunny sections in yellow and shade in teal" /></td>
+    <td align="center"><img src="media/more_shade.png" width="320" alt="Shady on iPhone: an alternative path that follows more shaded streets between the same endpoints" /></td>
+  </tr>
+</table>
+<p align="center"><strong>Same destination. A cooler journey.</strong></p>
+
+## The idea
+
+A city walk should be about the places you discover. On a sunny day, the most direct route can leave you walking in the sun for much of the journey.
+
+**Shady helps you choose a walk with less sun.** Pick a destination and departure time, then compare **Shortest** with **More shade**. See where buildings cast shade, how much sunny walking you could save, and how many extra minutes it takes. The shaded option stays within **25% extra distance**.
+
+Built for the hackathon, Shady plans walks across Kraków's connected public walking network. Shade is an estimate from buildings at your departure time; trees and clouds aren't included.
+
+## Try Shady
+
+You'll need **Node.js 22.13+**, **uv with Python 3.12**, and **Expo Go** on your phone. Connect the phone and laptop to the same Wi-Fi or hotspot.
+
+**1. Start the city engine** in a terminal:
 
 ```sh
 cd ~/Developer/shady/backend
 uv sync --locked
-uv run uvicorn shady.api:app --host 0.0.0.0 --port 8000
+uv run uvicorn shady.api:app --host 0.0.0.0 --port 8000 --no-access-log
 ```
-The prepared local dataset is already in `data/processed`. Startup loads it into memory and takes roughly 17 seconds on the development laptop. Check `http://localhost:8000/health` for `ready: true`.
 
-In another terminal:
+The hackathon laptop already has the prepared city data. Give it about 20 seconds to load. On a fresh checkout, follow [city data setup](docs/TECHNICAL.md#rebuild-the-real-data) first—or try a saved walk without the backend.
+
+**2. Start the app** in another terminal:
+
 ```sh
 cd ~/Developer/shady/mobile
 npm ci
-EXPO_PUBLIC_API_URL=http://YOUR_LAPTOP_LAN_IP:8000 npx expo start --lan
+EXPO_PUBLIC_API_URL=http://YOUR_MAC_WIFI_IP:8000 npx expo start --go --lan
 ```
-Scan the QR code using Expo Go. On macOS, `ipconfig getifaddr en0` usually shows the Wi-Fi IP. Use the active hotspot/network interface if different. Allow incoming connections to Python when macOS asks. A phone cannot reach the laptop through `localhost`. No API key is needed on iOS; Android development builds using Google Maps need the usual platform API-key configuration. Expo Go uses its bundled map configuration.
 
-On macOS with Xcode installed, `npx expo start --ios` opens the simulator. In Xcode 26 Device Hub, choose **Device → Location → Custom Coordinates…** and use latitude `50.0617`, longitude `19.9373` for a Kraków GPS test. Older Simulator versions use **Features → Location**. Enable the software keyboard through **Device → Keyboard → Toggle Software Keyboard** when testing address entry. A simulated position is a test fixture, not your real location.
+On Mac, `ipconfig getifaddr en0` usually shows your Wi-Fi IP. Replace `YOUR_MAC_WIFI_IP` with it, scan the QR code with your iPhone Camera, and open Shady in Expo Go. Allow Local Network access if asked. If your Mac is also connected by Ethernet, see [phone setup](docs/TECHNICAL.md#run-on-a-phone) to advertise the Wi-Fi address explicitly.
 
-Browser preview: `npm run web`. It uses Leaflet with visible OpenStreetMap attribution. Native uses `react-native-maps`. Saved demo uses the bundled local SVG map on both platforms.
+Prefer the iOS simulator or a browser? See the [technical guide](docs/TECHNICAL.md#run-on-a-phone).
 
-## Use
-- Submit a destination search, choose your start, or long press the map to place a pin. Browser: right click to place a pin.
-- Tap the arrow to use your current location and recenter the camera. Permission denial or an unavailable fix leaves manual start selection available.
-- Compare **Shortest** and **More shade**; tap a card to change the displayed route. Yellow segments are sunny; teal segments are shaded. The legend appears just above the sheet when a route is displayed.
-- Tap **Start walk** to follow the selected route with foreground GPS, remaining distance/time, progress, off-route notices and arrival. Panning pauses camera following; the arrow resumes it. Keep Shady open during the walk. Saved routes offer a clearly labeled **Preview saved walk** with GPS off.
-- Drag the results sheet through 15%, 35%, and 70%. Select departure time; its label follows the slider and calculations commit on release. Dates and times are in **Europe/Warsaw**.
-- Select a 10:00, 13:00, or 16:00 saved summer walk. **Saved demo** is visibly labeled and works without the backend after Expo has loaded the bundle. Live failures stay explicit; they never silently use a demo.
+## Take it for a walk
 
-## Rebuild the real data
-Run from the project root. Acquisition occurs only here, never during routing requests.
-```sh
-uv run --directory backend python "$PWD/scripts/download_data.py"
-uv run --directory backend python "$PWD/scripts/extract_walk.py"
-uv run --directory backend python "$PWD/scripts/prepare_data.py"
-uv run --directory backend python "$PWD/scripts/verify_city.py"
-```
-The download is about 280 MB: Kraków plus neighboring county building archives, and the Małopolskie regional OSM snapshot. Raw and processed files are ignored by Git. The small real demo geometry/results are versioned in the app. Rebuilding overwrites generated demo and benchmark files. Preparation resumes by reusing existing GraphML/Parquet artifacts; automatic invalidation is a deferred limitation. When raw inputs or import rules change, move `data/processed/walk.graphml` and/or `buildings.parquet` into a backup directory before running preparation, so the corresponding artifact is regenerated. The current delivered graph was explicitly regenerated after the access/direction/boundary fixes.
+1. **Choose your destination.** Search for a place in Kraków, or long press the map to drop a pin. Change **From** to choose your start; the arrow uses your location.
+2. **Choose your moment.** Tap **Now** to explore a different departure time. Watch the shade change with the sun.
+3. **Compare your paths.** Tap **Shortest** or **More shade**. Teal means shade; yellow means sun. The cards show the trade-off in distance, time and shade.
+4. **Start walk.** Follow the highlighted path with live progress and remaining distance. Keep Shady open; tap the arrow to resume camera following after panning.
 
-Overpass timed out in this environment. The implemented fallback streams the regional Geofabrik PBF, applies OSMnx walking exclusions plus explicit access checks, and uses OSMnx's XML importer with `retain_all=True`. It preserves disconnected components. Pedestrian direction restrictions (`oneway:foot`, `foot:forward/backward`) are preserved; vehicle-only one-way restrictions do not constrain walking. Customer-only, permit-only, private and other restricted pedestrian paths are excluded unless there is explicit public pedestrian permission. Walking edges are projected to EPSG:2180 and clipped into city-side portions with boundary nodes against the actual city polygon. Nodes outside it or paths with no connected route produce explicit errors. Origins/destinations snap to edges within 100 m; displayed offsets are connectors, not validated walking paths. The graph contains 2,341 disconnected components; coverage is not a promise of access to every address.
+**Want the quick demo?** Open the results sheet and choose a saved summer walk at **10:00**, **13:00** or **16:00**. Saved walks work without the backend once Expo has loaded the app, and their previews keep GPS off. **Saved demo** is always clearly labeled.
 
-The building parser preserves ground footprints and courtyard holes, using measured heights or roof-ground differences. LoD1 is a simplified historical model. Tile halos include neighboring buildings; city output is clipped to the boundary. 500 m shadow tiles and exact edge shade fractions are cached by the dataset and ten-minute snapshot. Endpoint insertion uses isolated adjacency overlays, leaving the shared graph unchanged.
+[How shade works, logs, tests and measured performance →](docs/TECHNICAL.md)
 
-## Model and limits
-Shadows sweep vertical building footprints opposite the sun, by `height / tan(solar elevation)`. Solar position is computed with pvlib at central Kraków. Ground is approximately flat. Trees, terrain, clouds, and changes during a walk are excluded. Below 5° sun elevation, shade estimates are unavailable. At night no artificial 100% shade is shown. Walking speed is 1.3 m/s. Walking navigation follows the highlighted route while the app is open. There are no voice/turn instructions, background tracking or automatic rerouting. Arrival refers to the mapped route endpoint; pin-to-path offsets remain unvalidated connectors.
+## Sources
 
-Shortest distance D is computed first. Eligible directed edges satisfy `distance_from_start + edge_length + distance_to_finish <= 1.25 D`. Candidates use penalties 0, 1, 2, 4, 8, 16, and 32 on sunny length. Over-cap candidates are rejected; choose least sunny length, then shortest distance. This is a heuristic, not a globally optimal constrained-path solver. There is no walk-distance cap. Long routes may take substantially longer.
+Shady connects open city data with the position of the sun:
 
-## Verification and performance
-```sh
-cd backend
-uv run pytest --cov=shady --cov-branch --cov-report=json --cov-report=term-missing
-uv run python ../scripts/check_coverage.py coverage.json
-uv run ruff check src tests
-cd ../mobile
-npm run test:coverage
-npm run typecheck
-npm run lint
-npx expo-doctor
-```
-Python core gates: **95% lines / 90% branches**. Mobile critical logic: **90% lines / branches**. Tests cover actual geometry/routing; external HTTP and native services are mocked at their boundaries.
+- **Walking paths and city boundary:** © [OpenStreetMap contributors](https://www.openstreetmap.org/copyright), ODbL; regional data from [Geofabrik](https://download.geofabrik.de/europe/poland/malopolskie.html).
+- **Building footprints and heights:** [GUGiK 3D buildings, LoD1 2024](https://www.geoportal.gov.pl/en/data/other-data/3d-models-of-building/), CC BY 4.0, covering Kraków and neighboring counties.
+- **Solar position:** [pvlib](https://pvlib-python.readthedocs.io/en/stable/).
+- **Address search:** [Nominatim](https://operations.osmfoundation.org/policies/nominatim/).
 
-Real dataset acceptance and timings are recorded in `docs/benchmark.json`: Stare Miasto, Podgórze, Nowa Huta, western Kraków, and a cross-district walk. Cold clears tile and edge caches; warm repeats the same request. Timings measure the planning core, excluding startup, network latency, and phone rendering. The current cross-city route exceeds the 10-second cold / 2-second warm targets; local district routes meet them. These are measured examples, not worst-case guarantees.
-
-See `docs/DEVICE-CHECKS.md` for native acceptance checks. A browser review does not establish native gesture smoothness, GPS accuracy, or frame rate.
-
-## Sources and attribution
-- © [OpenStreetMap contributors](https://www.openstreetmap.org/copyright), ODbL. Administrative relation 449696; walking data from [Geofabrik Małopolskie](https://download.geofabrik.de/europe/poland/malopolskie.html).
-- [GUGiK LoD1 2024 buildings](https://www.geoportal.gov.pl/en/data/other-data/3d-models-of-building/), CC BY 4.0; normalized for shade modeling. Archives: [Kraków 1261](https://opendata.geoportal.gov.pl/InneDane/Budynki3D/LOD1/2024/12/1261.zip), [Krakowski 1206](https://opendata.geoportal.gov.pl/InneDane/Budynki3D/LOD1/2024/12/1206.zip), [Wielicki 1219](https://opendata.geoportal.gov.pl/InneDane/Budynki3D/LOD1/2024/12/1219.zip).
-- Search: [Nominatim](https://operations.osmfoundation.org/policies/nominatim/), server-side submitted searches only, identifying User-Agent, disk cache, one upstream request/second across the **single demo server process**. Do not run multiple workers against the public endpoint; use a shared limiter or another provider for deployment. Configure `SHADY_GEOCODER_URL` to change provider.
-- Browser tiles follow the [OSM tile policy](https://operations.osmfoundation.org/policies/tiles/). Only visible map tiles are requested. Offline demo geometry is generated from the OSM dataset, not downloaded tiles.
-
-## API
-`GET /health`, `GET /v1/metadata`, `GET /v1/search?q=…`, `POST /v1/routes`, `GET /v1/shade?bbox=west,south,east,north&departure_at=ISO8601&zoom=16`. Interactive schemas: `http://localhost:8000/docs`.
+[Full attribution and data notes](docs/TECHNICAL.md#sources-and-attribution) · [Demo walkthrough](docs/WALKTHROUGH.md)

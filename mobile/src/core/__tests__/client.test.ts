@@ -104,3 +104,89 @@ test("permission API failures do not expose native exception stacks", async () =
     }),
   ).rejects.toThrow("Couldn't get your location");
 });
+
+test("phone diagnostics link a request to server logs without exposing its address", async () => {
+  const logs = jest.spyOn(console, "info").mockImplementation(() => {});
+  const fetcher = jest.fn().mockResolvedValue({
+    ok: true,
+    status: 200,
+    headers: new Headers(),
+    json: async () => ({ results: [] }),
+  });
+  try {
+    await apiRequest(
+      "/v1/search?q=Secret%20Street",
+      "http://laptop",
+      {},
+      fetcher,
+    );
+    const id = new Headers(fetcher.mock.calls[0][1].headers).get(
+      "X-Request-ID",
+    );
+    expect(id).toMatch(/^mobile-/);
+    const events = logs.mock.calls.map(([line]) => JSON.parse(String(line)));
+    expect(events).toEqual(
+      expect.arrayContaining([
+        expect.objectContaining({
+          event: "http.started",
+          request_id: id,
+          path: "/v1/search",
+        }),
+        expect.objectContaining({
+          event: "http.completed",
+          request_id: id,
+          status: 200,
+        }),
+      ]),
+    );
+    expect(JSON.stringify(events)).not.toContain("Secret");
+    expect(JSON.stringify(events)).not.toContain("http://laptop");
+  } finally {
+    logs.mockRestore();
+  }
+});
+
+test("diagnostics classify network and response failures without copying exception text", async () => {
+  const logs = jest.spyOn(console, "info").mockImplementation(() => {});
+  try {
+    await expect(
+      apiRequest(
+        "/unknown-secret-path",
+        "http://laptop",
+        {},
+        jest.fn().mockRejectedValue(new Error("Secret")),
+      ),
+    ).rejects.toThrow("Secret");
+    await expect(
+      apiRequest(
+        "/health",
+        "http://laptop",
+        {},
+        jest.fn().mockResolvedValue({
+          ok: true,
+          json: async () => {
+            throw SyntaxError("Secret");
+          },
+        }),
+      ),
+    ).rejects.toThrow("Secret");
+    const events = logs.mock.calls.map(([line]) => JSON.parse(String(line)));
+    expect(events).toEqual(
+      expect.arrayContaining([
+        expect.objectContaining({
+          event: "http.failed",
+          path: "other",
+          reason: "network",
+        }),
+        expect.objectContaining({
+          event: "http.failed",
+          path: "/health",
+          reason: "response",
+        }),
+      ]),
+    );
+    expect(JSON.stringify(events)).not.toContain("Secret");
+  } finally {
+    logs.mockRestore();
+  }
+});

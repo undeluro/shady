@@ -1,0 +1,6 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="160" height="160" viewBox="0 0 80 80" role="img" aria-labelledby="title">
+<title id="title">Shady smiling sun</title>
+<g stroke="#FFC857" stroke-width="5" stroke-linecap="round"><path d="M40 5v8M40 67v8M5 40h8M67 40h8M15 15l6 6M59 59l6 6M15 65l6-6M59 21l6-6"/></g>
+<circle cx="40" cy="40" r="23" fill="#FFC857"/>
+<path d="M29 36v3M49 36v3M31 48q9 9 18 0" stroke="#123B35" stroke-width="3" stroke-linecap="round" fill="none"/>
+</svg>
