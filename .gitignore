@@ -1,0 +1,17 @@
+node_modules/
+.venv/
+__pycache__/
+.pytest_cache/
+.coverage
+coverage/
+.expo/
+dist/
+data/raw/
+data/processed/
+work/
+.env
+*.log
+.DS_Store
+
+coverage.json
+.ruff_cache/

@@ -1,0 +1,49 @@
+{
+  "expo": {
+    "name": "Shady",
+    "slug": "shady",
+    "version": "1.0.0",
+    "orientation": "portrait",
+    "icon": "./assets/shady-icon.png",
+    "scheme": "shady",
+    "userInterfaceStyle": "light",
+    "ios": {
+      "supportsTablet": true,
+      "bundleIdentifier": "app.shady.krakow",
+      "infoPlist": {
+        "NSLocationWhenInUseUsageDescription": "Find a walking start near you in Krak\u00f3w."
+      },
+      "icon": "./assets/shady-icon.png"
+    },
+    "android": {
+      "adaptiveIcon": {
+        "foregroundImage": "./assets/shady-icon.png",
+        "backgroundColor": "#F5FAF8"
+      },
+      "predictiveBackGestureEnabled": false,
+      "package": "app.shady.krakow"
+    },
+    "web": {
+      "output": "static",
+      "favicon": "./assets/shady-icon.png"
+    },
+    "plugins": [
+      "expo-router",
+      [
+        "expo-splash-screen",
+        {
+          "backgroundColor": "#F5FAF8"
+        }
+      ],
+      [
+        "expo-location",
+        {
+          "locationWhenInUsePermission": "Find a walking start near you in Krak\u00f3w."
+        }
+      ]
+    ],
+    "experiments": {
+      "typedRoutes": true
+    }
+  }
+}

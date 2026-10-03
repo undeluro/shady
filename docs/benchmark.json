@@ -1,0 +1,84 @@
+{
+  "machine": "macOS-26.6.2-arm64-arm-64bit",
+  "dataset_version": "krakow-lod1-2024-osm-20261003-bc496ec647f9",
+  "nodes": 165275,
+  "edges": 411796,
+  "components": 2003,
+  "routes": [
+    {
+      "district": "Stare Miasto",
+      "title": "Rynek G\u0142\u00f3wny \u2192 Wawel",
+      "cold_s": 2.462,
+      "warm_s": 0.079,
+      "cold_target_met": true,
+      "warm_target_met": true,
+      "distance_m": 1041.73,
+      "shaded_distance_m": 1067.02,
+      "sunny_m_saved": 134.63,
+      "snap_offsets": [
+        1.99,
+        9.06
+      ]
+    },
+    {
+      "district": "Podg\u00f3rze",
+      "title": "Rynek Podg\u00f3rski \u2192 Plac Bohater\u00f3w Getta",
+      "cold_s": 0.469,
+      "warm_s": 0.045,
+      "cold_target_met": true,
+      "warm_target_met": true,
+      "distance_m": 643.18,
+      "shaded_distance_m": 669.81,
+      "sunny_m_saved": 199.89,
+      "snap_offsets": [
+        11.97,
+        1.99
+      ]
+    },
+    {
+      "district": "Nowa Huta",
+      "title": "Plac Centralny \u2192 Aleja R\u00f3\u017c",
+      "cold_s": 0.33,
+      "warm_s": 0.101,
+      "cold_target_met": true,
+      "warm_target_met": true,
+      "distance_m": 1100.5,
+      "shaded_distance_m": 1318.07,
+      "sunny_m_saved": 125.33,
+      "snap_offsets": [
+        5.07,
+        1.98
+      ]
+    },
+    {
+      "district": "Western Krak\u00f3w",
+      "title": "Park Jordana \u2192 B\u0142onia",
+      "cold_s": 0.366,
+      "warm_s": 0.056,
+      "cold_target_met": true,
+      "warm_target_met": true,
+      "distance_m": 1044.18,
+      "shaded_distance_m": 1044.18,
+      "sunny_m_saved": 0.0,
+      "snap_offsets": [
+        8.94,
+        5.77
+      ]
+    },
+    {
+      "district": "Cross district",
+      "title": "Rynek G\u0142\u00f3wny \u2192 Plac Centralny",
+      "cold_s": 19.392,
+      "warm_s": 2.58,
+      "cold_target_met": false,
+      "warm_target_met": false,
+      "distance_m": 7825.63,
+      "shaded_distance_m": 9006.21,
+      "sunny_m_saved": 640.49,
+      "snap_offsets": [
+        1.99,
+        5.07
+      ]
+    }
+  ]
+}
