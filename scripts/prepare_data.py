@@ -15,6 +15,7 @@ from shapely.ops import transform
 
 from shady.importer import read_citygml
 from shady.network import clip_graph, pedestrian_graph
+from shady.woodland import extract_woodland
 
 ROOT = Path(__file__).resolve().parents[1]
 RAW, OUT = ROOT / "data/raw", ROOT / "data/processed"
@@ -107,6 +108,17 @@ with ThreadPoolExecutor(max_workers=1) as pool:
     g = future.result()
 (OUT / "boundary.json").write_text(json.dumps(json.loads((RAW / "boundary.json").read_text())))
 frame = gpd.read_parquet(OUT / "buildings.parquet")
+woodland_path = OUT / "woodland.parquet"
+previous_manifest = (
+    json.loads((OUT / "manifest.json").read_text()) if (OUT / "manifest.json").exists() else {}
+)
+woodland_stats = previous_manifest.get("woodland", {}).get("import_stats", {})
+if not woodland_path.exists():
+    woodland, woodland_stats = extract_woodland(RAW / "malopolskie-latest.osm.pbf", boundary)
+    woodland.to_parquet(woodland_path)
+else:
+    woodland = gpd.read_parquet(woodland_path)
+print("Normalized woodland", len(woodland), "areas", flush=True)
 raw_hashes = {}
 for source in [
     *RAW.glob("*.zip"),
@@ -116,11 +128,14 @@ for source in [
     with source.open("rb") as stream:
         raw_hashes[source.name] = hashlib.file_digest(stream, "sha256").hexdigest()
 processed_hashes = {}
-for name in ("buildings.parquet", "walk.graphml"):
+for name in ("buildings.parquet", "walk.graphml", "woodland.parquet"):
     with (OUT / name).open("rb") as stream:
         processed_hashes[name] = hashlib.file_digest(stream, "sha256").hexdigest()
 fingerprint = hashlib.sha256(
-    json.dumps({**raw_hashes, **processed_hashes}, sort_keys=True).encode()
+    json.dumps(
+        {**raw_hashes, **processed_hashes, "shade_model": "osm-woodland-weighted-v1"},
+        sort_keys=True,
+    ).encode()
 ).hexdigest()[:12]
 version = (
     "krakow-lod1-2024-osm-" + datetime.now(timezone.utc).strftime("%Y%m%d") + "-" + fingerprint
@@ -138,6 +153,13 @@ manifest = {
     "graph_nodes": len(g),
     "graph_edges": g.number_of_edges(),
     "osm_acquisition": "Geofabrik regional PBF / filtered OSMnx XML",
+    "woodland": {
+        "count": len(woodland),
+        "area_m2": float(woodland.geometry.area.sum()),
+        "tags": ["natural=wood", "landuse=forest", "landcover=trees"],
+        "import_stats": woodland_stats,
+        "model_version": "osm-woodland-weighted-v1",
+    },
     "timezone": "Europe/Warsaw",
     "sources": [
         {

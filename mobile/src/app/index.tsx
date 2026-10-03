@@ -1,3 +1,4 @@
+import { shadeExplanation, WOODLAND_COLOR } from "../core/shade";
 import { logEvent } from "../diagnostics/logger";
 import { isValidElement, useEffect, useReducer, useRef, useState } from "react";
 import {
@@ -572,6 +573,13 @@ export default function Home() {
         <Animated.View pointerEvents="none" style={[s.legend, legendStyle]}>
           <View style={[s.dot, { backgroundColor: C.teal }]} />
           <Text style={s.small}>Shade</Text>
+          {route.shade_pct !== null &&
+            route.shade_model?.woodland_status === "leaf_on" && (
+              <>
+                <View style={[s.dot, { backgroundColor: WOODLAND_COLOR }]} />
+                <Text style={s.small}>Trees (est.)</Text>
+              </>
+            )}
           <View style={[s.dot, { backgroundColor: C.sun }]} />
           <Text style={s.small}>Sun</Text>
         </Animated.View>
@@ -585,7 +593,7 @@ export default function Home() {
                 ? "Shade overlay unavailable"
                 : zoom < 14
                   ? "Zoom in to see shade"
-                  : "Building shade estimate"}
+                  : "Departure shade estimate"}
             </Text>
           </View>
         )}
@@ -708,8 +716,8 @@ export default function Home() {
               <Text style={s.footnote}>
                 Departure estimate ·{" "}
                 {timeFormatter.format(new Date(result.effective_at))} Warsaw ·
-                Buildings only. Trees, clouds and changing shade during your
-                walk aren’t included.
+                {shadeExplanation(result.shade_model, result.shade_status)}{" "}
+                Clouds and changes during your walk aren’t included.
               </Text>
               {result.snapped_endpoints.some((e) => e.offset_m > 1) && (
                 <Text style={s.footnote}>
@@ -893,9 +901,11 @@ export default function Home() {
                   estimate with up to 25% extra distance.
                 </Text>
                 <Text style={s.footnote}>
-                  2024 GUGiK buildings over flat ground. No tree, cloud or
-                  terrain shading. Shade is estimated at departure in ten-minute
-                  snapshots. Night and very low sun have no shade percentage.
+                  2024 GUGiK buildings over flat ground, plus likely tree shade
+                  from OSM wooded areas in May–September. Woodland gets a
+                  conservative routing weight; gaps may be sunny. No cloud or
+                  terrain shading. Departure estimates use ten-minute snapshots.
+                  Night and very low sun have no shade percentage.
                 </Text>
                 {(metadata.data?.sources ?? demoData.sources).map((source) => (
                   <Pressable
@@ -958,7 +968,7 @@ function RouteCard({
           </Text>
           <Text style={s.small}>
             {shaded
-              ? `+${added > 0 && added < 1 ? "<1" : Math.ceil(added)} min · ${savedSun === null ? "Shade unavailable" : `${Math.round(savedSun)} m less sun`}`
+              ? `+${added > 0 && added < 1 ? "<1" : Math.ceil(added)} min · ${savedSun === null ? "Shade unavailable" : `${Math.round(savedSun)} m less sun (est.)`}`
               : "The most direct way there"}
           </Text>
         </View>
@@ -986,7 +996,7 @@ function RouteCard({
         <Text style={s.small}>
           {route.shade_pct === null
             ? "Shade estimate unavailable"
-            : `${Math.round(route.shade_pct)}% in shade`}
+            : `${Math.round(route.shade_pct)}% estimated shade`}
         </Text>
       </View>
     </Pressable>

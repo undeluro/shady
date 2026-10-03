@@ -16,6 +16,7 @@ from shapely.ops import transform
 from .dataset import TO_GEO, TO_LOCAL, load_dataset
 from .diagnostics import configure_logging, event, failure, new_request_id, request_id
 from .routing import RouteError
+from .tiles import LEAF_ON_MONTHS, WOODLAND_WEIGHT
 
 ROOT = Path(__file__).resolve().parents[3]
 
@@ -267,7 +268,18 @@ def create_app(dataset=None, data_dir=None, geocoder=None):
             **ds.manifest,
             "coverage_polygon": mapping(ds.boundary_geo),
             "coverage_bbox": list(ds.boundary_geo.bounds),
-            "model": "Building shade estimate at departure; flat ground; no trees or clouds.",
+            "model": (
+                "Building shade at departure plus weighted OSM woodland estimate; "
+                "flat ground; no clouds or projected tree shadows."
+                if ds.planner.shade.woodland
+                else "Building shade estimate at departure; woodland data not loaded; no clouds."
+            ),
+            "woodland_model": {
+                "available": bool(ds.planner.shade.woodland),
+                "weight": WOODLAND_WEIGHT,
+                "leaf_on_months": list(LEAF_ON_MONTHS),
+                "assumption": "Heuristic woodland benefit, not measured canopy transmission.",
+            },
             "walking_speed_m_s": 1.3,
             "detour_cap": 0.25,
             "demo_scenarios": ["10:00", "13:00", "16:00"],
@@ -308,17 +320,20 @@ def create_app(dataset=None, data_dir=None, geocoder=None):
         detail = zoom >= 14 and not area.is_empty and area.area <= 16_000_000
         features = []
         if detail and status == "available":
-            geometry = await compute(request, "shade", ds.planner.shade.geometry_for, area, at)
-            geometry = geometry.simplify(0.75, preserve_topology=True)
-            geometry = transform(TO_GEO, geometry).intersection(ds.boundary_geo)
-            parts = (
-                [geometry] if geometry.geom_type == "Polygon" else getattr(geometry, "geoms", [])
-            )
-            features = [
-                {"type": "Feature", "properties": {}, "geometry": mapping(p)}
-                for p in parts
-                if p.geom_type == "Polygon" and not p.is_empty
-            ]
+            layers = await compute(request, "shade", ds.planner.shade.layers_for, area, at)
+            for source, geometry in zip(("building", "woodland"), layers):
+                geometry = geometry.simplify(0.75, preserve_topology=True)
+                geometry = transform(TO_GEO, geometry).intersection(ds.boundary_geo)
+                parts = (
+                    [geometry]
+                    if geometry.geom_type == "Polygon"
+                    else getattr(geometry, "geoms", [])
+                )
+                features.extend(
+                    {"type": "Feature", "properties": {"source": source}, "geometry": mapping(p)}
+                    for p in parts
+                    if p.geom_type == "Polygon" and not p.is_empty
+                )
         event(
             "shade.result",
             effective_at=at.isoformat(),
@@ -331,6 +346,7 @@ def create_app(dataset=None, data_dir=None, geocoder=None):
             "dataset_version": ds.manifest["dataset_version"],
             "detail_available": detail,
             "shade_status": status,
+            "shade_model": ds.planner.shade.model(at),
             "shadows": {"type": "FeatureCollection", "features": features},
         }
 

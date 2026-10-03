@@ -163,6 +163,7 @@ class RoutePlanner:
             "effective_at": at.isoformat(),
             "dataset_version": self.shade.version,
             "shade_status": status,
+            "shade_model": self.shade.model(at),
             "routes": routes,
             "recommendation_status": "improved" if improved else "no_improvement",
             "added_minutes": max(0, (routes[1]["duration_s"] - routes[0]["duration_s"]) / 60),
@@ -196,14 +197,18 @@ class RoutePlanner:
     def _result(self, edges, profile, status, points, at):
         coordinates = []
         segments = []
+        building_m = woodland_m = 0
         for edge in edges:
             line = edge["geometry"]
             coordinates.extend(list(line.coords) if not coordinates else list(line.coords)[1:])
             if status == "available":
-                shade = self.shade.geometry_for(line.envelope.buffer(0.01), at)
+                buildings, woodland = self.shade.layers_for(line.envelope.buffer(0.01), at)
+                building_m += line.intersection(buildings).length
+                woodland_m += line.intersection(woodland).length
                 for geometry, label in [
-                    (line.intersection(shade), "shaded"),
-                    (line.difference(shade), "sunny"),
+                    (line.intersection(buildings), "shaded"),
+                    (line.intersection(woodland), "woodland"),
+                    (line.difference(buildings).difference(woodland), "sunny"),
                 ]:
                     parts = (
                         [geometry]
@@ -234,6 +239,9 @@ class RoutePlanner:
         shaded = sum(d["shaded"] for d in edges)
         return {
             "profile": profile,
+            "shade_model": self.shade.model(at),
+            "building_shaded_m": round(building_m, 2) if status == "available" else None,
+            "woodland_m": round(woodland_m, 2) if status == "available" else None,
             "distance_m": round(length, 2),
             "duration_s": round(length / 1.3, 2),
             "shaded_m": round(shaded, 2) if status == "available" else None,

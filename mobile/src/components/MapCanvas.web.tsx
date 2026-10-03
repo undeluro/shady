@@ -1,3 +1,4 @@
+import { exposureColor, WOODLAND_COLOR } from "../core/shade";
 import { useEffect, useRef } from "react";
 import type * as L from "leaflet";
 import "leaflet/dist/leaflet.css";
@@ -61,7 +62,14 @@ function LiveMap(props: MapProps) {
     group.clearLayers();
     if (props.showShade && props.shadows)
       L.geoJSON(props.shadows.shadows as GeoJSON.FeatureCollection, {
-        style: { fillColor: "#168575", fillOpacity: 0.24, stroke: false },
+        style: (feature) => ({
+          fillColor:
+            feature?.properties?.source === "woodland"
+              ? WOODLAND_COLOR
+              : "#168575",
+          fillOpacity: feature?.properties?.source === "woodland" ? 0.2 : 0.24,
+          stroke: false,
+        }),
       }).addTo(group);
     if (props.route) {
       L.geoJSON(props.route.geometry as GeoJSON.LineString, {
@@ -70,12 +78,7 @@ function LiveMap(props: MapProps) {
       props.route.segments.features.forEach((f) =>
         L.geoJSON(f as GeoJSON.Feature, {
           style: {
-            color:
-              f.properties.exposure === "shaded"
-                ? "#168575"
-                : f.properties.exposure === "sunny"
-                  ? "#FFC857"
-                  : "#577B74",
+            color: exposureColor(f.properties.exposure),
             weight: 6,
           },
         }).addTo(group),

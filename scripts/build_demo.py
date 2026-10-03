@@ -73,8 +73,14 @@ def build_demo(ds):
                 ),
             }
 
-        shadow = ds.planner.shade.geometry_for(area, at).simplify(2, preserve_topology=True)
-        parts = [shadow] if shadow.geom_type == "Polygon" else getattr(shadow, "geoms", [])
+        layers = ds.planner.shade.layers_for(area, at)
+        layer_parts = []
+        for geometry in layers:
+            geometry = geometry.simplify(2, preserve_topology=True)
+            parts = (
+                [geometry] if geometry.geom_type == "Polygon" else getattr(geometry, "geoms", [])
+            )
+            layer_parts.append([p for p in parts if p.geom_type == "Polygon"])
         snapshots.append(
             {
                 "id": f"summer-{hour}",
@@ -88,10 +94,10 @@ def build_demo(ds):
                     "dataset_version": result["dataset_version"],
                     "detail_available": True,
                     "shade_status": result["shade_status"],
+                    "shade_model": result["shade_model"],
                     "shadows": {"type": "FeatureCollection", "features": []},
-                    "display_path": display_path(
-                        [p for p in parts if p.geom_type == "Polygon"], bounds
-                    ),
+                    "display_path": display_path(layer_parts[0], bounds),
+                    "woodland_display_path": display_path(layer_parts[1], bounds),
                 },
             }
         )

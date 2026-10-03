@@ -10,7 +10,15 @@ export type Collection<G> = {
   type: "FeatureCollection";
   features: Feature<G>[];
 };
+export type ShadeModel = {
+  woodland_status: "leaf_on" | "off_season" | "not_loaded";
+  woodland_weight: number;
+  leaf_on_months: number[];
+};
 export type Route = {
+  shade_model?: ShadeModel;
+  building_shaded_m?: number | null;
+  woodland_m?: number | null;
   profile: "shortest" | "shaded";
   distance_m: number;
   duration_s: number;
@@ -21,6 +29,7 @@ export type Route = {
   segments: Collection<Line>;
 };
 export type RouteResult = {
+  shade_model?: ShadeModel;
   effective_at: string;
   dataset_version: string;
   shade_status: "available" | "night" | "low_sun";
@@ -31,6 +40,8 @@ export type RouteResult = {
   snapped_endpoints: { coordinates: number[]; offset_m: number }[];
 };
 export type ShadeResult = {
+  shade_model?: ShadeModel;
+  woodland_display_path?: string;
   display_path?: string;
   effective_at: string;
   dataset_version: string;

@@ -35,7 +35,21 @@ def load_dataset(directory):
     if not frame.geometry.is_valid.all() or frame.geometry.is_empty.any():
         raise ValueError("Invalid building geometry in processed dataset.")
     buildings = [Building(row.id, row.geometry, float(row.height)) for row in frame.itertuples()]
-    engine = ShadeEngine(buildings, manifest["dataset_version"])
+    woodland = []
+    if "woodland" in manifest:
+        woods = gpd.read_parquet(directory / "woodland.parquet")
+        if (
+            woods.crs is None
+            or woods.crs.to_epsg() != 2180
+            or not woods.geometry.is_valid.all()
+            or woods.geometry.is_empty.any()
+            or not woods.geom_type.isin(["Polygon", "MultiPolygon"]).all()
+        ):
+            raise ValueError("Woodland geometry must be valid polygons in EPSG:2180 meters.")
+        if len(woods) != manifest["woodland"]["count"]:
+            raise ValueError("Woodland count does not match the manifest.")
+        woodland = list(woods.geometry)
+    engine = ShadeEngine(buildings, manifest["dataset_version"], woodland=woodland)
     graph = ox.load_graphml(directory / "walk.graphml")
     if CRS.from_user_input(graph.graph["crs"]).to_epsg() != 2180:
         raise ValueError("Walking graph must use EPSG:2180 meters.")

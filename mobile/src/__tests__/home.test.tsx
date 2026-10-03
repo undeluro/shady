@@ -322,3 +322,12 @@ test("a successful GPS press moves the camera even if the starting coordinate is
     ),
   );
 });
+
+test("summer demo explains estimated tree shade and shows the source legend", async () => {
+  mount();
+  fireEvent.press(screen.getByText("13:00"));
+  await waitFor(() => expect(screen.getByText("SAVED DEMO")).toBeTruthy());
+  expect(screen.getByText("Trees (est.)")).toBeTruthy();
+  expect(screen.getByText(/Buildings \+ likely tree shade/)).toBeTruthy();
+  expect(screen.getAllByText(/% estimated shade/).length).toBe(2);
+});

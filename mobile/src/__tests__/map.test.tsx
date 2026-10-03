@@ -251,3 +251,28 @@ test("camera renders preserve both the native map and unchanged overlay coordina
     .forEach((line, i) => expect(line.props.coordinates).toBe(coordinates[i]));
   expect(mockOverlayOrder.map((v) => v.id)).toEqual(ids);
 });
+
+test("woodland estimates remain distinct and below the colored walking route", () => {
+  const route = routeFixture();
+  route.segments.features[0].properties.exposure = "woodland";
+  const shadows = {
+    ...props.shadows!,
+    shadows: {
+      ...props.shadows!.shadows,
+      features: props.shadows!.shadows.features.map((feature) => ({
+        ...feature,
+        properties: { source: "woodland" },
+      })),
+    },
+  };
+  render(<MapCanvas {...props} shadows={shadows} route={route} />);
+  expect(screen.getByTestId("shadow-polygon").props.fillColor).toBe(
+    "rgba(101,159,104,0.20)",
+  );
+  expect(mockOverlayOrder.map((v) => v.color)).toEqual([
+    "shade",
+    "#F5FAF8",
+    "#659F68",
+    "#FFC857",
+  ]);
+});

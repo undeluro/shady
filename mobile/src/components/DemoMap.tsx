@@ -1,3 +1,4 @@
+import { exposureColor, WOODLAND_COLOR } from "../core/shade";
 import { useMemo, useState } from "react";
 import { StyleSheet, View, Text, PanResponder, Animated } from "react-native";
 import Svg, { Path, Circle, G } from "react-native-svg";
@@ -77,6 +78,14 @@ export function DemoMap(props: MapProps) {
             />
             {props.showShade && (
               <Path
+                d={props.shadows?.woodland_display_path ?? ""}
+                fill={WOODLAND_COLOR}
+                fillOpacity={0.2}
+                fillRule="evenodd"
+              />
+            )}
+            {props.showShade && (
+              <Path
                 d={props.shadows?.display_path ?? ""}
                 fill="#168575"
                 fillOpacity={0.22}
@@ -97,13 +106,7 @@ export function DemoMap(props: MapProps) {
                 key={i}
                 d={path(f.geometry.coordinates)}
                 fill="none"
-                stroke={
-                  f.properties.exposure === "shaded"
-                    ? "#168575"
-                    : f.properties.exposure === "sunny"
-                      ? "#FFC857"
-                      : "#577B74"
-                }
+                stroke={exposureColor(f.properties.exposure)}
                 strokeWidth={6 / scale}
                 strokeLinecap="round"
               />

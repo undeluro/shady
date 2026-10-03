@@ -1,3 +1,4 @@
+import { exposureColor, shadeFillColor } from "../core/shade";
 import { Fragment, useEffect, useMemo, useRef, useState } from "react";
 import MapView, { Marker, Polygon, Polyline } from "react-native-maps";
 import { StyleSheet, View } from "react-native";
@@ -54,7 +55,7 @@ function LiveMap(props: MapProps) {
             key={`shade-${i}`}
             coordinates={points(f.geometry.coordinates[0])}
             holes={f.geometry.coordinates.slice(1).map(points)}
-            fillColor="rgba(22,133,117,0.24)"
+            fillColor={shadeFillColor(f.properties.source)}
             strokeColor="transparent"
             strokeWidth={1}
             zIndex={0}
@@ -72,13 +73,7 @@ function LiveMap(props: MapProps) {
           <Polyline
             key={`route-${i}`}
             coordinates={points(f.geometry.coordinates)}
-            strokeColor={
-              f.properties.exposure === "shaded"
-                ? "#168575"
-                : f.properties.exposure === "sunny"
-                  ? "#FFC857"
-                  : "#577B74"
-            }
+            strokeColor={exposureColor(f.properties.exposure)}
             strokeWidth={6}
             zIndex={2}
           />

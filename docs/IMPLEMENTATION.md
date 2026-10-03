@@ -39,3 +39,11 @@ Start walk hands the selected immutable route/time/shade snapshot to an Expo Rou
 See DEVICE-CHECKS.md for simulator evidence and remaining physical-device checks. The requested Expo Codex plugin was installed and its native UI guidance applied. Backend data, routing and benchmark limits are unchanged.
 
 Final verification for this change: 47 mobile tests pass, critical core coverage 100% lines and branches; TypeScript and Expo lint clean. iOS production JS export succeeds (8.6 MB). Backend was not changed. Native simulator screenshots confirm translucent shade, keyboard avoidance, GPS recentering, saved preview and live walking progress/off-route/arrival. Physical phone checks remain pending.
+
+## OSM woodland estimate — 4 October 2026
+
+Imported 4,641 real OSM wooded areas (40.9 km²) from the existing Małopolskie PBF, including multipolygon holes. Weighted woodland-only path length contributes 0.5 equivalent shade during May–September in Warsaw time; building shade takes precedence. This is an explicit uncalibrated summer model, without displaced crown shadows. Viewport and route segments identify their source, and native/web/saved maps distinguish trees from buildings. Route cards and sunny-distance savings use estimated labels. Night/low-sun copy and legends avoid implying tree shade availability. Saved real summer snapshots were regenerated.
+
+Verification: 47 Python tests; 98.22% line / 92.19% branch coverage. 60 mobile tests; critical core 100% line/branch. Ruff, TypeScript and Expo lint pass. Independent review found no blocking correctness issue; preserving import statistics on resumed preparation was fixed and checked by rebuilding then resuming. Las Wolski real-data acceptance exercises 1,134.3 m woodland; other district and cross-city routes remain inside the city and within the 25% cap. Updated benchmark records 21.265 s cold / 2.691 s warm for the cross-city case, above targets.
+
+Native simulator: live July forest walk renders muted green tree sections and yellow clearing sections with the complete route visible; toggling shade preserves route ordering. Native sheet expansion, submitted landmark searches and saved summer labels checked. Physical phone and field shade validation remain pending.

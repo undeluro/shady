@@ -1,6 +1,6 @@
 {
   "machine": "macOS-26.6.2-arm64-arm-64bit",
-  "dataset_version": "krakow-lod1-2024-osm-20261003-8f3e61609555",
+  "dataset_version": "krakow-lod1-2024-osm-20261003-6599c79fdb2f",
   "nodes": 164456,
   "edges": 407949,
   "components": 2341,
@@ -8,13 +8,15 @@
     {
       "district": "Stare Miasto",
       "title": "Rynek G\u0142\u00f3wny \u2192 Wawel",
-      "cold_s": 2.613,
-      "warm_s": 0.108,
+      "cold_s": 2.644,
+      "warm_s": 0.096,
       "cold_target_met": true,
       "warm_target_met": true,
       "distance_m": 1041.73,
       "shaded_distance_m": 1067.02,
       "sunny_m_saved": 134.63,
+      "woodland_m": 0.0,
+      "building_shaded_m": 219.42,
       "snap_offsets": [
         1.99,
         9.06
@@ -23,13 +25,15 @@
     {
       "district": "Podg\u00f3rze",
       "title": "Rynek Podg\u00f3rski \u2192 Plac Bohater\u00f3w Getta",
-      "cold_s": 0.469,
-      "warm_s": 0.034,
+      "cold_s": 0.531,
+      "warm_s": 0.05,
       "cold_target_met": true,
       "warm_target_met": true,
       "distance_m": 643.18,
       "shaded_distance_m": 669.81,
       "sunny_m_saved": 199.89,
+      "woodland_m": 0.0,
+      "building_shaded_m": 328.08,
       "snap_offsets": [
         11.97,
         1.99
@@ -38,13 +42,15 @@
     {
       "district": "Nowa Huta",
       "title": "Plac Centralny \u2192 Aleja R\u00f3\u017c",
-      "cold_s": 0.313,
-      "warm_s": 0.089,
+      "cold_s": 0.415,
+      "warm_s": 0.123,
       "cold_target_met": true,
       "warm_target_met": true,
       "distance_m": 1100.5,
       "shaded_distance_m": 1318.07,
       "sunny_m_saved": 125.33,
+      "woodland_m": 0.0,
+      "building_shaded_m": 360.9,
       "snap_offsets": [
         5.07,
         1.98
@@ -53,28 +59,49 @@
     {
       "district": "Western Krak\u00f3w",
       "title": "Park Jordana \u2192 B\u0142onia",
-      "cold_s": 0.34,
-      "warm_s": 0.042,
+      "cold_s": 0.507,
+      "warm_s": 0.061,
       "cold_target_met": true,
       "warm_target_met": true,
       "distance_m": 1044.18,
       "shaded_distance_m": 1044.18,
       "sunny_m_saved": 0.0,
+      "woodland_m": 0.0,
+      "building_shaded_m": 0.0,
       "snap_offsets": [
         8.94,
         5.77
       ]
     },
     {
+      "district": "Woodland",
+      "title": "Las Wolski wooded walk",
+      "cold_s": 0.084,
+      "warm_s": 0.022,
+      "cold_target_met": true,
+      "warm_target_met": true,
+      "distance_m": 1134.3,
+      "shaded_distance_m": 1134.3,
+      "sunny_m_saved": 0.0,
+      "woodland_m": 1134.3,
+      "building_shaded_m": 0.0,
+      "snap_offsets": [
+        33.33,
+        49.84
+      ]
+    },
+    {
       "district": "Cross district",
       "title": "Rynek G\u0142\u00f3wny \u2192 Plac Centralny",
-      "cold_s": 19.292,
-      "warm_s": 2.511,
+      "cold_s": 21.265,
+      "warm_s": 2.691,
       "cold_target_met": false,
       "warm_target_met": false,
       "distance_m": 7825.63,
-      "shaded_distance_m": 9006.21,
-      "sunny_m_saved": 640.49,
+      "shaded_distance_m": 9131.44,
+      "sunny_m_saved": 794.21,
+      "woodland_m": 805.66,
+      "building_shaded_m": 2876.85,
       "snap_offsets": [
         1.99,
         5.07

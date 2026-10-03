@@ -25,6 +25,7 @@ checks = [
     ),
     ("Nowa Huta", "Plac Centralny → Aleja Róż", (20.0372, 50.0713), (20.0375, 50.0783)),
     ("Western Kraków", "Park Jordana → Błonia", (19.9167, 50.0636), (19.9081, 50.0589)),
+    ("Woodland", "Las Wolski wooded walk", (19.8500, 50.0546), (19.8425, 50.0600)),
     (
         "Cross district",
         "Rynek Główny → Plac Centralny",
@@ -45,6 +46,7 @@ for index, (district, title, start, end) in enumerate(checks):
     at = datetime.fromisoformat("2026-07-01T13:00:00+02:00")
     ds.planner.shade.cache.clear()
     ds.planner.shade.edge_cache.clear()
+    ds.planner.shade.woodland_cache.clear()
     try:
         t = time.monotonic()
         cold = ds.planner.plan(TO_LOCAL(*start), TO_LOCAL(*end), at)
@@ -54,6 +56,8 @@ for index, (district, title, start, end) in enumerate(checks):
         warm_s = time.monotonic() - t
         assert cold == warm
         assert cold["routes"][1]["distance_m"] <= cold["routes"][0]["distance_m"] * 1.25 + 0.01
+        if district == "Woodland":
+            assert cold["routes"][1]["woodland_m"] > 100
         for r in cold["routes"]:
             from shapely.geometry import shape
 
@@ -68,6 +72,8 @@ for index, (district, title, start, end) in enumerate(checks):
             "distance_m": cold["routes"][0]["distance_m"],
             "shaded_distance_m": cold["routes"][1]["distance_m"],
             "sunny_m_saved": cold["sunny_m_saved"],
+            "woodland_m": cold["routes"][1]["woodland_m"],
+            "building_shaded_m": cold["routes"][1]["building_shaded_m"],
             "snap_offsets": [p["offset_m"] for p in cold["snapped_endpoints"]],
         }
         report["routes"].append(row)

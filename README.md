@@ -21,9 +21,9 @@
 
 A city walk should be about the places you discover. On a sunny day, the most direct route can leave you walking in the sun for much of the journey.
 
-**Shady helps you choose a walk with less sun.** Pick a destination and departure time, then compare **Shortest** with **More shade**. See where buildings cast shade, how much sunny walking you could save, and how many extra minutes it takes. The shaded option stays within **25% extra distance**.
+**Shady helps you choose a walk with less sun.** Pick a destination and departure time, then compare **Shortest** with **More shade**. See building shadows and likely tree shade, how much sunny walking you could save, and how many extra minutes it takes. The shaded option stays within **25% extra distance**.
 
-Built for the hackathon, Shady plans walks across Kraków's connected public walking network. Shade is an estimate from buildings at your departure time; trees and clouds aren't included.
+Built for the hackathon, Shady plans walks across Kraków's connected public walking network. Shade combines building shadows at departure with likely tree cover in summer. Trees are an approximation—wooded paths can still have sunny gaps.
 
 ## Try Shady
 
@@ -55,7 +55,7 @@ Prefer the iOS simulator or a browser? See the [technical guide](docs/TECHNICAL.
 
 1. **Choose your destination.** Search for a place in Kraków, or long press the map to drop a pin. Change **From** to choose your start; the arrow uses your location.
 2. **Choose your moment.** Tap **Now** to explore a different departure time. Watch the shade change with the sun.
-3. **Compare your paths.** Tap **Shortest** or **More shade**. Teal means shade; yellow means sun. The cards show the trade-off in distance, time and shade.
+3. **Compare your paths.** Tap **Shortest** or **More shade**. Teal marks building shade, muted green marks likely tree shade, and yellow marks sun. The cards show the trade-off in distance, time and shade.
 4. **Start walk.** Follow the highlighted path with live progress and remaining distance. Keep Shady open; tap the arrow to resume camera following after panning.
 
 **Want the quick demo?** Open the results sheet and choose a saved summer walk at **10:00**, **13:00** or **16:00**. Saved walks work without the backend once Expo has loaded the app, and their previews keep GPS off. **Saved demo** is always clearly labeled.
@@ -66,7 +66,7 @@ Prefer the iOS simulator or a browser? See the [technical guide](docs/TECHNICAL.
 
 Shady connects open city data with the position of the sun:
 
-- **Walking paths and city boundary:** © [OpenStreetMap contributors](https://www.openstreetmap.org/copyright), ODbL; regional data from [Geofabrik](https://download.geofabrik.de/europe/poland/malopolskie.html).
+- **Walking paths, wooded areas and city boundary:** © [OpenStreetMap contributors](https://www.openstreetmap.org/copyright), ODbL; regional data from [Geofabrik](https://download.geofabrik.de/europe/poland/malopolskie.html).
 - **Building footprints and heights:** [GUGiK 3D buildings, LoD1 2024](https://www.geoportal.gov.pl/en/data/other-data/3d-models-of-building/), CC BY 4.0, covering Kraków and neighboring counties.
 - **Solar position:** [pvlib](https://pvlib-python.readthedocs.io/en/stable/).
 - **Address search:** [Nominatim](https://operations.osmfoundation.org/policies/nominatim/).

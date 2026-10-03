@@ -1,3 +1,4 @@
+import { shadeExplanation, WOODLAND_COLOR } from "../core/shade";
 import { logEvent } from "../diagnostics/logger";
 import { useEffect, useRef, useState } from "react";
 import {
@@ -258,6 +259,12 @@ export default function Navigation() {
             <Text style={s.subtitle}>
               <Text style={{ color: "#168575" }}>●</Text> Shade
             </Text>
+            {session.route.shade_pct !== null &&
+              session.route.shade_model?.woodland_status === "leaf_on" && (
+                <Text style={s.subtitle}>
+                  <Text style={{ color: WOODLAND_COLOR }}>●</Text> Trees (est.)
+                </Text>
+              )}
             <Text style={s.subtitle}>
               <Text style={{ color: "#FFC857" }}>●</Text> Sun
             </Text>
@@ -268,13 +275,18 @@ export default function Navigation() {
             </Text>
           </View>
           <Text style={s.footnote}>
-            Building shade at{" "}
+            Departure estimate at{" "}
             {new Intl.DateTimeFormat("en-GB", {
               timeZone: "Europe/Warsaw",
               hour: "2-digit",
               minute: "2-digit",
             }).format(new Date(session.effectiveAt))}{" "}
-            Warsaw. Shade may change during your walk.
+            Warsaw.{" "}
+            {shadeExplanation(
+              session.route.shade_model,
+              session.route.shade_pct === null ? "unavailable" : "available",
+            )}{" "}
+            Shade may change during your walk.
           </Text>
           <Pressable
             accessibilityRole="button"
