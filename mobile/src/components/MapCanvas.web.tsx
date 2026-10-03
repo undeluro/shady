@@ -12,6 +12,7 @@ function LiveMap(props: MapProps) {
     latest.current = props;
   }, [props]);
   const layers = useRef<L.LayerGroup | null>(null);
+  const lastCamera = useRef<number | undefined>(undefined);
   const fitted = useRef<string>("");
   useEffect(() => {
     // eslint-disable-next-line @typescript-eslint/no-require-imports -- Defer browser globals until mount.
@@ -42,6 +43,7 @@ function LiveMap(props: MapProps) {
       });
     };
     m.on("moveend", region);
+    m.on("dragstart", () => latest.current.onPan?.());
     m.on("contextmenu", (e) =>
       latest.current.onPin({ latitude: e.latlng.lat, longitude: e.latlng.lng }),
     );
@@ -101,6 +103,14 @@ function LiveMap(props: MapProps) {
       fillColor: "#168575",
       fillOpacity: 1,
     }).addTo(group);
+    if (props.location)
+      L.circleMarker([props.location.latitude, props.location.longitude], {
+        radius: 8,
+        color: "white",
+        weight: 3,
+        fillColor: "#168575",
+        fillOpacity: 1,
+      }).addTo(group);
     if (props.destination)
       L.circleMarker(
         [props.destination.latitude, props.destination.longitude],
@@ -114,11 +124,25 @@ function LiveMap(props: MapProps) {
       ).addTo(group);
   }, [
     props.origin,
+    props.location,
     props.destination,
     props.route,
     props.shadows,
     props.showShade,
   ]);
+  useEffect(() => {
+    if (props.cameraTarget && lastCamera.current !== props.cameraTarget.id) {
+      lastCamera.current = props.cameraTarget.id;
+      map.current?.setView(
+        [
+          props.cameraTarget.coordinate.latitude,
+          props.cameraTarget.coordinate.longitude,
+        ],
+        17,
+        { animate: !props.reduceMotion },
+      );
+    }
+  }, [props.cameraTarget, props.reduceMotion]);
   return (
     <div style={{ position: "absolute", inset: 0, zIndex: 0 }}>
       <div ref={root} style={{ width: "100%", height: "100%" }} />

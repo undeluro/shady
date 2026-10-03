@@ -19,12 +19,15 @@ EXPO_PUBLIC_API_URL=http://YOUR_LAPTOP_LAN_IP:8000 npx expo start --lan
 ```
 Scan the QR code using Expo Go. On macOS, `ipconfig getifaddr en0` usually shows the Wi-Fi IP. Use the active hotspot/network interface if different. Allow incoming connections to Python when macOS asks. A phone cannot reach the laptop through `localhost`. No API key is needed on iOS; Android development builds using Google Maps need the usual platform API-key configuration. Expo Go uses its bundled map configuration.
 
+On macOS with Xcode installed, `npx expo start --ios` opens the simulator. In Xcode 26 Device Hub, choose **Device → Location → Custom Coordinates…** and use latitude `50.0617`, longitude `19.9373` for a Kraków GPS test. Older Simulator versions use **Features → Location**. Enable the software keyboard through **Device → Keyboard → Toggle Software Keyboard** when testing address entry. A simulated position is a test fixture, not your real location.
+
 Browser preview: `npm run web`. It uses Leaflet with visible OpenStreetMap attribution. Native uses `react-native-maps`. Saved demo uses the bundled local SVG map on both platforms.
 
 ## Use
 - Submit a destination search, choose your start, or long press the map to place a pin. Browser: right click to place a pin.
-- Tap GPS to use your current location. Permission denial leaves manual start selection available.
-- Compare **Shortest** and **More shade**; tap a card to change the displayed route. Yellow segments are sunny; teal segments are shaded.
+- Tap the arrow to use your current location and recenter the camera. Permission denial or an unavailable fix leaves manual start selection available.
+- Compare **Shortest** and **More shade**; tap a card to change the displayed route. Yellow segments are sunny; teal segments are shaded. The legend appears just above the sheet when a route is displayed.
+- Tap **Start walk** to follow the selected route with foreground GPS, remaining distance/time, progress, off-route notices and arrival. Panning pauses camera following; the arrow resumes it. Keep Shady open during the walk. Saved routes offer a clearly labeled **Preview saved walk** with GPS off.
 - Drag the results sheet through 15%, 35%, and 70%. Select departure time; its label follows the slider and calculations commit on release. Dates and times are in **Europe/Warsaw**.
 - Select a 10:00, 13:00, or 16:00 saved summer walk. **Saved demo** is visibly labeled and works without the backend after Expo has loaded the bundle. Live failures stay explicit; they never silently use a demo.
 
@@ -43,7 +46,7 @@ Overpass timed out in this environment. The implemented fallback streams the reg
 The building parser preserves ground footprints and courtyard holes, using measured heights or roof-ground differences. LoD1 is a simplified historical model. Tile halos include neighboring buildings; city output is clipped to the boundary. 500 m shadow tiles and exact edge shade fractions are cached by the dataset and ten-minute snapshot. Endpoint insertion uses isolated adjacency overlays, leaving the shared graph unchanged.
 
 ## Model and limits
-Shadows sweep vertical building footprints opposite the sun, by `height / tan(solar elevation)`. Solar position is computed with pvlib at central Kraków. Ground is approximately flat. Trees, terrain, clouds, and changes during a walk are excluded. Below 5° sun elevation, shade estimates are unavailable. At night no artificial 100% shade is shown. Walking speed is 1.3 m/s. This is route planning, not turn-by-turn navigation.
+Shadows sweep vertical building footprints opposite the sun, by `height / tan(solar elevation)`. Solar position is computed with pvlib at central Kraków. Ground is approximately flat. Trees, terrain, clouds, and changes during a walk are excluded. Below 5° sun elevation, shade estimates are unavailable. At night no artificial 100% shade is shown. Walking speed is 1.3 m/s. Walking navigation follows the highlighted route while the app is open. There are no voice/turn instructions, background tracking or automatic rerouting. Arrival refers to the mapped route endpoint; pin-to-path offsets remain unvalidated connectors.
 
 Shortest distance D is computed first. Eligible directed edges satisfy `distance_from_start + edge_length + distance_to_finish <= 1.25 D`. Candidates use penalties 0, 1, 2, 4, 8, 16, and 32 on sunny length. Over-cap candidates are rejected; choose least sunny length, then shortest distance. This is a heuristic, not a globally optimal constrained-path solver. There is no walk-distance cap. Long routes may take substantially longer.
 

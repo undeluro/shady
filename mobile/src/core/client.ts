@@ -23,14 +23,27 @@ type LocationBoundary = {
 export async function locateOrigin(
   location: LocationBoundary,
 ): Promise<Coordinate> {
-  const permission = await location.requestForegroundPermissionsAsync();
+  let permission;
+  try {
+    permission = await location.requestForegroundPermissionsAsync();
+  } catch {
+    throw new Error(
+      "Couldn't get your location. Check Location Services, or choose your start on the map.",
+    );
+  }
   if (permission.status !== "granted")
     throw new Error("Location access is off. Choose your start on the map.");
-  const result = await location.getCurrentPositionAsync();
-  return {
-    latitude: result.coords.latitude,
-    longitude: result.coords.longitude,
-  };
+  try {
+    const result = await location.getCurrentPositionAsync();
+    return {
+      latitude: result.coords.latitude,
+      longitude: result.coords.longitude,
+    };
+  } catch {
+    throw new Error(
+      "Couldn't get your location. Check Location Services, or choose your start on the map.",
+    );
+  }
 }
 export function compatibleShade(
   route: RouteResult,

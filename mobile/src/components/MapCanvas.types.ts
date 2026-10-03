@@ -1,6 +1,9 @@
 import type { Coordinate, MapRegion, Route, ShadeResult } from "../core/types";
 export type MapProps = {
   reduceMotion?: boolean;
+  cameraTarget?: { coordinate: Coordinate; id: number };
+  location?: Coordinate;
+  onPan?: () => void;
   origin: Coordinate;
   destination: Coordinate | null;
   route: Route | null;

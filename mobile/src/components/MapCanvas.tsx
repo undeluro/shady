@@ -1,27 +1,60 @@
-import { useEffect, useRef } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import MapView, { Marker, Polygon, Polyline } from "react-native-maps";
-import { StyleSheet } from "react-native";
+import { StyleSheet, View } from "react-native";
 import type { MapProps } from "./MapCanvas.types";
 import { DemoMap } from "./DemoMap";
 const points = (coordinates: number[][]) =>
   coordinates.map(([longitude, latitude]) => ({ latitude, longitude }));
-export default function MapCanvas(props: MapProps) {
+function LiveMap(props: MapProps) {
   const map = useRef<MapView>(null);
+  const [ready, setReady] = useState(false);
+  const lastCamera = useRef<number | undefined>(undefined);
   const fitted = useRef<string>("");
   useEffect(() => {
     const key = JSON.stringify([
       props.route?.geometry.coordinates[0],
       props.route?.geometry.coordinates.at(-1),
     ]);
-    if (props.route && fitted.current !== key) {
+    if (ready && props.route && fitted.current !== key) {
       fitted.current = key;
       map.current?.fitToCoordinates(points(props.route.geometry.coordinates), {
         edgePadding: { top: 200, right: 55, bottom: 320, left: 55 },
         animated: !props.reduceMotion,
       });
     }
-  }, [props.route, props.reduceMotion]);
-  if (props.demo) return <DemoMap {...props} />;
+  }, [props.route, props.reduceMotion, ready]);
+  useEffect(() => {
+    if (
+      ready &&
+      props.cameraTarget &&
+      lastCamera.current !== props.cameraTarget.id
+    ) {
+      lastCamera.current = props.cameraTarget.id;
+      map.current?.animateToRegion(
+        {
+          ...props.cameraTarget.coordinate,
+          latitudeDelta: 0.006,
+          longitudeDelta: 0.006,
+        },
+        props.reduceMotion ? 0 : 350,
+      );
+    }
+  }, [props.cameraTarget, props.reduceMotion, ready]);
+  const shadowPolygons = useMemo(
+    () =>
+      props.showShade &&
+      props.shadows?.shadows.features.map((f, i) => (
+        <Polygon
+          key={`shade-${i}-${JSON.stringify(f.geometry.coordinates)}`}
+          coordinates={points(f.geometry.coordinates[0])}
+          holes={f.geometry.coordinates.slice(1).map(points)}
+          fillColor="rgba(22,133,117,0.24)"
+          strokeColor="transparent"
+          strokeWidth={1}
+        />
+      )),
+    [props.showShade, props.shadows],
+  );
   return (
     <MapView
       ref={map}
@@ -31,6 +64,9 @@ export default function MapCanvas(props: MapProps) {
         latitudeDelta: 0.018,
         longitudeDelta: 0.018,
       }}
+      onMapReady={() => setReady(true)}
+      onPanDrag={props.onPan}
+      userInterfaceStyle="light"
       mapType="standard"
       showsCompass={false}
       showsUserLocation={false}
@@ -38,16 +74,7 @@ export default function MapCanvas(props: MapProps) {
       onLongPress={(e) => props.onPin(e.nativeEvent.coordinate)}
       onRegionChangeComplete={props.onRegion}
     >
-      {props.showShade &&
-        props.shadows?.shadows.features.map((f, i) => (
-          <Polygon
-            key={`shade-${i}`}
-            coordinates={points(f.geometry.coordinates[0])}
-            holes={f.geometry.coordinates.slice(1).map(points)}
-            fillColor="rgba(22,133,117,0.24)"
-            strokeWidth={0}
-          />
-        ))}
+      {shadowPolygons}
       {props.route && (
         <Polyline
           coordinates={points(props.route.geometry.coordinates)}
@@ -69,6 +96,24 @@ export default function MapCanvas(props: MapProps) {
           strokeWidth={6}
         />
       ))}
+      {props.location && (
+        <Marker
+          coordinate={props.location}
+          title="Your location"
+          anchor={{ x: 0.5, y: 0.5 }}
+        >
+          <View
+            style={{
+              width: 22,
+              height: 22,
+              borderRadius: 11,
+              backgroundColor: "#168575",
+              borderWidth: 3,
+              borderColor: "white",
+            }}
+          />
+        </Marker>
+      )}
       <Marker coordinate={props.origin} title="Start" pinColor="#168575" />
       {props.destination && (
         <Marker
@@ -79,4 +124,8 @@ export default function MapCanvas(props: MapProps) {
       )}
     </MapView>
   );
+}
+
+export default function MapCanvas(props: MapProps) {
+  return props.demo ? <DemoMap {...props} /> : <LiveMap {...props} />;
 }

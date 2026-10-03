@@ -83,3 +83,24 @@ test("the configured fetch boundary is used when no override is supplied", async
     globalThis.fetch = previous;
   }
 });
+
+test("an unavailable native GPS fix becomes a readable manual-start error", async () => {
+  await expect(
+    locateOrigin({
+      requestForegroundPermissionsAsync: async () => ({ status: "granted" }),
+      getCurrentPositionAsync: async () => {
+        throw new Error("FunctionCallException kCLErrorDomain error 0");
+      },
+    }),
+  ).rejects.toThrow("Couldn't get your location");
+});
+test("permission API failures do not expose native exception stacks", async () => {
+  await expect(
+    locateOrigin({
+      requestForegroundPermissionsAsync: async () => {
+        throw Error("native");
+      },
+      getCurrentPositionAsync: jest.fn(),
+    }),
+  ).rejects.toThrow("Couldn't get your location");
+});

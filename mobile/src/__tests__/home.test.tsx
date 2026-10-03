@@ -12,9 +12,24 @@ import {
   QueryClientProvider,
   notifyManager,
 } from "@tanstack/react-query";
+import { WalkSessionProvider, useWalkSession } from "../state/WalkSession";
 import Home from "../app/index";
 import demos from "../data/demo.json";
 import * as Location from "expo-location";
+jest.mock("react-native-reanimated", () => {
+  // eslint-disable-next-line @typescript-eslint/no-require-imports -- Jest native boundary factory.
+  const React = require("react");
+  // eslint-disable-next-line @typescript-eslint/no-require-imports -- Jest native boundary factory.
+  const { View } = require("react-native");
+  return {
+    __esModule: true,
+    default: { View },
+    useSharedValue: (value: any) => React.useRef({ value }).current,
+    useAnimatedStyle: (compute: any) => compute(),
+  };
+});
+const mockPush = jest.fn();
+jest.mock("expo-router", () => ({ useRouter: () => ({ push: mockPush }) }));
 jest.mock("expo-location", () => ({
   requestForegroundPermissionsAsync: jest.fn(),
   getCurrentPositionAsync: jest.fn(),
@@ -22,10 +37,14 @@ jest.mock("expo-location", () => ({
 jest.mock("react-native-safe-area-context", () => ({
   useSafeAreaInsets: () => ({ top: 0, bottom: 0, left: 0, right: 0 }),
 }));
-jest.mock("../components/MapCanvas", () => () => null);
+const mockMap = jest.fn();
+jest.mock("../components/MapCanvas", () => (props: any) => {
+  mockMap(props);
+  return null;
+});
 jest.mock("@react-native-community/slider", () => () => null);
 jest.mock("@gorhom/bottom-sheet", () => {
-  // eslint-disable-next-line @typescript-eslint/no-require-imports -- Jest factories run before imports.
+  // eslint-disable-next-line @typescript-eslint/no-require-imports -- Jest native boundary factory.
   const React = require("react");
   // eslint-disable-next-line @typescript-eslint/no-require-imports -- Mock the native boundary within the factory.
   const { ScrollView } = require("react-native");
@@ -57,14 +76,17 @@ afterEach(() => {
   clients.splice(0).forEach((client) => client.clear());
   globalThis.fetch = fetchBefore;
 });
-function mount() {
+function mount(observer?: React.ReactNode) {
   const client = new QueryClient({
     defaultOptions: { queries: { retry: false, gcTime: Infinity } },
   });
   clients.push(client);
   return render(
     <QueryClientProvider client={client}>
-      <Home />
+      <WalkSessionProvider>
+        <Home />
+        {observer}
+      </WalkSessionProvider>
     </QueryClientProvider>,
   );
 }
@@ -245,4 +267,57 @@ test("a failed replan clears old route cards instead of pairing them with new en
   expect(screen.queryByRole("button", { name: /More shade,/ })).toBeNull();
   expect(screen.queryByRole("button", { name: /Shortest,/ })).toBeNull();
   expect(screen.getByText("New destination C")).toBeTruthy();
+});
+
+test("the exposure legend appears only for a displayed route", async () => {
+  mount();
+  expect(screen.queryByText("Shade")).toBeNull();
+  expect(screen.queryByText("Sun")).toBeNull();
+  fireEvent.press(screen.getByText("13:00"));
+  await screen.findByText("SAVED DEMO");
+  expect(screen.getByText("Shade")).toBeTruthy();
+  expect(screen.getByText("Sun")).toBeTruthy();
+});
+test("the departure control renders its mixed text children in a text container", () => {
+  mount();
+  expect(screen.getByText(/Now/)).toBeTruthy();
+});
+test("starting a saved preview passes the selected route and its effective snapshot to navigation", async () => {
+  let selected: any;
+  function Observe() {
+    selected = useWalkSession().session;
+    return null;
+  }
+  mount(<Observe />);
+  fireEvent.press(screen.getByText("13:00"));
+  await screen.findByText("SAVED DEMO");
+  fireEvent.press(screen.getByRole("button", { name: /Shortest,/ }));
+  fireEvent.press(screen.getByRole("button", { name: "Preview saved walk" }));
+  expect(selected.route.profile).toBe("shortest");
+  expect(selected.effectiveAt).toBe(demos.scenarios[1].result.effective_at);
+  expect(selected.demo).toBeTruthy();
+  expect(mockPush).toHaveBeenCalledWith("/navigation");
+});
+test("a successful GPS press moves the camera even if the starting coordinate is unchanged", async () => {
+  (Location.requestForegroundPermissionsAsync as jest.Mock).mockResolvedValue({
+    status: "granted",
+  });
+  (Location.getCurrentPositionAsync as jest.Mock).mockResolvedValue({
+    coords: { latitude: 50.0617, longitude: 19.9373 },
+  });
+  mount();
+  fireEvent.press(screen.getByRole("button", { name: "Use my location" }));
+  await waitFor(() =>
+    expect(mockMap.mock.calls.at(-1)![0].cameraTarget?.coordinate).toEqual({
+      latitude: 50.0617,
+      longitude: 19.9373,
+    }),
+  );
+  const first = mockMap.mock.calls.at(-1)![0].cameraTarget.id;
+  fireEvent.press(screen.getByRole("button", { name: "Use my location" }));
+  await waitFor(() =>
+    expect(mockMap.mock.calls.at(-1)![0].cameraTarget.id).toBeGreaterThan(
+      first,
+    ),
+  );
 });

@@ -26,3 +26,16 @@ Verification checkpoint: Python 33/33 passing, 98.80% line / 93.75% branch; mobi
 
 Ruling: clear retained route/shade after failed replanning rather than carry a separately labeled previous itinerary — prevents new endpoint pins from presenting an old route as current — cost: the prior route must be recomputed or reselected after failure.
 minor (deferred): automatic source/filter fingerprint invalidation for resumable processed artifacts. Current graph was explicitly rebuilt and source inputs unchanged for reused buildings; README documents moving cached artifacts aside before future source/import changes. Cost: a future operator must follow that step to avoid stale provenance.
+
+
+## iOS feedback fixes and walking navigation — 3 October 2026
+
+The earlier native-verification limitation is superseded by an installed Xcode simulator. Reproduced iOS black polygons and isolated them to MapKit overlays: explicit transparent strokes with a nonzero width remove the black rendering. Geometry-specific keys prevent reused polygon instances retaining old holes; memoized polygon elements avoid rebuilding geometry during GPS updates.
+
+GPS now issues consumable camera commands after map readiness, including a fresh native map after saved mode. Motion preference changes do not replay an old command. Native errors become readable manual-start messages. Search uses keyboard avoidance inside its modal. The route-only legend follows the sheet on the animation thread. A noninteractive SVG gradient backs the wordmark, and the GPS control uses an arrow.
+
+Start walk hands the selected immutable route/time/shade snapshot to an Expo Router navigation screen. Foreground GPS provides remaining distance/time, progress, arrival, off-route notices and follow/recenter controls. Inaccurate fixes do not invent progress. Watches and pending subscriptions are removed when the screen leaves. Saved navigation is a labeled static preview with no GPS. There are no voice/turn instructions, background tracking or automatic rerouting; arrival is at the mapped endpoint.
+
+See DEVICE-CHECKS.md for simulator evidence and remaining physical-device checks. The requested Expo Codex plugin was installed and its native UI guidance applied. Backend data, routing and benchmark limits are unchanged.
+
+Final verification for this change: 47 mobile tests pass, critical core coverage 100% lines and branches; TypeScript and Expo lint clean. iOS production JS export succeeds (8.6 MB). Backend was not changed. Native simulator screenshots confirm translucent shade, keyboard avoidance, GPS recentering, saved preview and live walking progress/off-route/arrival. Physical phone checks remain pending.

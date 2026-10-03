@@ -1,8 +1,10 @@
-import { useEffect, useReducer, useRef, useState } from "react";
+import { isValidElement, useEffect, useReducer, useRef, useState } from "react";
 import {
   ActivityIndicator,
   AccessibilityInfo,
   Linking,
+  KeyboardAvoidingView,
+  useWindowDimensions,
   Modal,
   Platform,
   Pressable,
@@ -12,6 +14,8 @@ import {
   TextInput,
   View,
 } from "react-native";
+import { useRouter } from "expo-router";
+import { useWalkSession } from "../state/WalkSession";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import BottomSheet, {
   BottomSheetScrollView,
@@ -24,6 +28,12 @@ import * as Haptics from "expo-haptics";
 import Constants from "expo-constants";
 import MapCanvas from "../components/MapCanvas";
 import DateControl from "../components/DateControl";
+import Animated, {
+  useSharedValue,
+  useAnimatedStyle,
+} from "react-native-reanimated";
+import { TopFade } from "../components/TopFade";
+import { LocationArrow } from "../components/LocationArrow";
 import { Sun } from "../components/Sun";
 import {
   apiRequest,
@@ -107,11 +117,17 @@ function Button({
         pressed && { opacity: 0.7 },
       ]}
     >
-      <Text style={s.buttonText}>{children ?? label}</Text>
+      {isValidElement(children) ? (
+        children
+      ) : (
+        <Text style={s.buttonText}>{children ?? label}</Text>
+      )}
     </Pressable>
   );
 }
 export default function Home() {
+  const router = useRouter();
+  const { start: startWalk } = useWalkSession();
   const [clock, setClock] = useState(() => Date.now());
   useEffect(() => {
     const timer = setInterval(() => setClock(Date.now()), 60000);
@@ -119,6 +135,12 @@ export default function Home() {
   }, []);
   const [retry, setRetry] = useState(0);
   const insets = useSafeAreaInsets();
+  const { height } = useWindowDimensions();
+  const sheetPosition = useSharedValue(height * 0.65);
+  const legendStyle = useAnimatedStyle(() => ({
+    transform: [{ translateY: sheetPosition.value - 44 }],
+  }));
+  const [cameraTarget, setCameraTarget] = useState<MapProps["cameraTarget"]>();
   const queryClient = useQueryClient();
   const [state, dispatch] = useReducer(planningReducer, initialPlanning);
   const [origin, setOrigin] = useState<Coordinate>({
@@ -349,6 +371,7 @@ export default function Home() {
       invalidateOperations();
       setSaved(null);
       setOrigin(point);
+      setCameraTarget({ coordinate: point, id });
       setOriginLabel("Your location");
       feedback();
     } catch (e) {
@@ -364,6 +387,7 @@ export default function Home() {
     invalidateOperations();
     sequence.current++;
     dispatch({ type: "reset" });
+    setCameraTarget(undefined);
     setSaved(scenario);
     setOrigin(scenario.origin);
     setOriginLabel(scenario.title.split(" → ")[0]);
@@ -390,6 +414,7 @@ export default function Home() {
   return (
     <View style={s.container}>
       <MapCanvas
+        cameraTarget={cameraTarget}
         origin={origin}
         reduceMotion={reduceMotion}
         destination={destination}
@@ -411,6 +436,7 @@ export default function Home() {
         onRegion={setRegion}
         demo={saved?.map}
       />
+      <TopFade height={insets.top + 190} />
       <View pointerEvents="box-none" style={[s.top, { top: insets.top + 10 }]}>
         <View style={s.brandRow}>
           <View style={s.brand}>
@@ -506,7 +532,7 @@ export default function Home() {
       </View>
       <View style={[s.mapTools, { top: insets.top + 205 }]}>
         <Button label="Use my location" onPress={gps}>
-          ◎
+          <LocationArrow />
         </Button>
         <Button
           label={showShade ? "Hide shade overlay" : "Show shade overlay"}
@@ -529,12 +555,14 @@ export default function Home() {
           <Text style={s.small}>{notice ?? state.error}</Text>
         </Pressable>
       )}
-      <View style={s.legend}>
-        <View style={[s.dot, { backgroundColor: C.teal }]} />
-        <Text style={s.small}>Shade</Text>
-        <View style={[s.dot, { backgroundColor: C.sun }]} />
-        <Text style={s.small}>Sun</Text>
-      </View>
+      {route && (
+        <Animated.View pointerEvents="none" style={[s.legend, legendStyle]}>
+          <View style={[s.dot, { backgroundColor: C.teal }]} />
+          <Text style={s.small}>Shade</Text>
+          <View style={[s.dot, { backgroundColor: C.sun }]} />
+          <Text style={s.small}>Sun</Text>
+        </Animated.View>
+      )}
       {!saved &&
         showShade &&
         (!visibleShade?.detail_available || shade.isError) && (
@@ -549,6 +577,7 @@ export default function Home() {
           </View>
         )}
       <BottomSheet
+        animatedPosition={sheetPosition}
         ref={sheet}
         index={1}
         snapPoints={SNAP_POINTS}
@@ -613,6 +642,43 @@ export default function Home() {
                   savedSun={result.sunny_m_saved}
                 />
               ))}
+              {route &&
+                destination &&
+                (saved || state.status !== "loading") && (
+                  <Pressable
+                    accessibilityRole="button"
+                    accessibilityLabel={
+                      saved ? "Preview saved walk" : "Start walk"
+                    }
+                    style={{
+                      minHeight: 50,
+                      backgroundColor: C.teal,
+                      borderRadius: 18,
+                      alignItems: "center",
+                      justifyContent: "center",
+                      marginTop: 12,
+                    }}
+                    onPress={() => {
+                      startWalk({
+                        origin,
+                        destination,
+                        destinationLabel,
+                        route,
+                        shadows: visibleShade,
+                        effectiveAt: result.effective_at,
+                        demo: saved?.map,
+                      });
+                      feedback();
+                      router.push("/navigation");
+                    }}
+                  >
+                    <Text
+                      style={{ fontSize: 16, fontWeight: "600", color: C.bg }}
+                    >
+                      {saved ? "Preview saved walk" : "Start walk"} ↗
+                    </Text>
+                  </Pressable>
+                )}
               <Text style={s.footnote}>
                 {result.shade_status === "night"
                   ? "The sun is below the horizon. Showing walking distance; shade percentage is unavailable."
@@ -691,7 +757,10 @@ export default function Home() {
         animationType={reduceMotion ? "none" : "fade"}
         onRequestClose={() => changePanel(null)}
       >
-        <View style={s.modalBackdrop}>
+        <KeyboardAvoidingView
+          style={s.modalBackdrop}
+          behavior={Platform.OS === "ios" ? "padding" : "height"}
+        >
           <View style={[s.modal, { paddingBottom: insets.bottom + 24 }]}>
             <View style={s.modalHeading}>
               <Text style={s.title}>
@@ -834,7 +903,7 @@ export default function Home() {
             )}
             {notice && <Text style={s.error}>{notice}</Text>}
           </View>
-        </View>
+        </KeyboardAvoidingView>
       </Modal>
     </View>
   );
@@ -965,7 +1034,7 @@ const s = StyleSheet.create({
   legend: {
     position: "absolute",
     left: 20,
-    bottom: "38%",
+    top: 0,
     flexDirection: "row",
     alignItems: "center",
     gap: 7,
