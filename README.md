@@ -10,7 +10,7 @@
   <a href="#the-idea">The idea</a> · <a href="#try-shady">Try Shady</a> · <a href="#take-it-for-a-walk">Take it for a walk</a> · <a href="docs/TECHNICAL.md">Under the hood</a>
 </p>
 
-<table>
+<table align="center">
   <tr><th align="center">Shortest</th><th align="center">More shade</th></tr>
   <tr>
     <td align="center"><img src="media/shortest.png" width="320" alt="Shady on iPhone: the shortest path, with sunny sections in yellow and shade in teal" /></td>
