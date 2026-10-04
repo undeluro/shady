@@ -1,0 +1,63 @@
+{
+  "environment": "Docker linux/amd64 under emulation on Apple Silicon; 2 CPUs, 4 GiB",
+  "startup_s": 49.402,
+  "startup_peak_bytes": 2934566912,
+  "central_route": {
+    "base_url": "http://127.0.0.1:18080",
+    "dataset_version": "krakow-lod1-2024-osm-20261003-6599c79fdb2f",
+    "health_s": 0.062,
+    "first_route_s": 4.086,
+    "repeated_route_s": 0.146,
+    "shade_s": 0.853,
+    "routes": 2,
+    "shadow_polygons": 77,
+    "effective_at": "2026-07-01T11:00:00+00:00",
+    "search_results": 2,
+    "search_s": 0.482
+  },
+  "cross_city_route": {
+    "base_url": "http://127.0.0.1:18080",
+    "cross_city": true,
+    "dataset_version": "krakow-lod1-2024-osm-20261003-6599c79fdb2f",
+    "health_s": 0.038,
+    "first_route_s": 33.967,
+    "repeated_route_s": 5.328,
+    "shade_s": 0.177,
+    "routes": 2,
+    "shadow_polygons": 77,
+    "effective_at": "2026-07-01T11:00:00+00:00"
+  },
+  "google_cloud_run": {
+    "region": "europe-west1",
+    "cpu": 2,
+    "memory_gib": 4,
+    "startup_s": 69.433,
+    "image_compressed_mib": 336.51,
+    "central_route": {
+      "base_url": "https://shady-api-434547199312.europe-west1.run.app",
+      "cross_city": false,
+      "dataset_version": "krakow-lod1-2024-osm-20261003-6599c79fdb2f",
+      "health_s": 0.532,
+      "first_route_s": 7.648,
+      "repeated_route_s": 0.68,
+      "shade_s": 2.458,
+      "routes": 2,
+      "shadow_polygons": 77,
+      "effective_at": "2026-07-01T11:00:00+00:00",
+      "search_results": 2,
+      "search_s": 0.854
+    },
+    "cross_city_route": {
+      "base_url": "https://shady-api-434547199312.europe-west1.run.app",
+      "cross_city": true,
+      "dataset_version": "krakow-lod1-2024-osm-20261003-6599c79fdb2f",
+      "health_s": 0.183,
+      "first_route_s": 60.181,
+      "repeated_route_s": 10.381,
+      "shade_s": 0.639,
+      "routes": 2,
+      "shadow_polygons": 77,
+      "effective_at": "2026-07-01T11:00:00+00:00"
+    }
+  }
+}

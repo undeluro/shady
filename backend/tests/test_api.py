@@ -40,6 +40,13 @@ def test_missing_dataset_is_explicit():
         assert client.get("/v1/metadata").status_code == 503
 
 
+def test_health_rejects_startup_probe_without_dataset():
+    with TestClient(create_app(data_dir="/does/not/exist")) as client:
+        response = client.get("/health")
+        assert response.status_code == 503
+        assert response.json() == {"ready": False, "dataset_version": None}
+
+
 def test_ready_api_routes_and_shade_share_effective_timestamp(tmp_path):
     ds = dataset()
     with TestClient(create_app(ds, data_dir=tmp_path)) as client:

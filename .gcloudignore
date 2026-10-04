@@ -1,0 +1,15 @@
+**
+!Dockerfile
+!backend/
+!backend/pyproject.toml
+!backend/uv.lock
+!backend/src/
+!backend/src/shady/
+!backend/src/shady/*.py
+!data/
+!data/processed/
+!data/processed/boundary.json
+!data/processed/buildings.parquet
+!data/processed/manifest.json
+!data/processed/walk.graphml
+!data/processed/woodland.parquet

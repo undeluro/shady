@@ -256,10 +256,13 @@ def create_app(dataset=None, data_dir=None, geocoder=None):
     @app.get("/health")
     async def health(request: Request):
         ds = request.app.state.dataset
-        return {
-            "ready": ds is not None,
-            "dataset_version": ds.manifest["dataset_version"] if ds else None,
-        }
+        return JSONResponse(
+            status_code=200 if ds is not None else 503,
+            content={
+                "ready": ds is not None,
+                "dataset_version": ds.manifest["dataset_version"] if ds else None,
+            },
+        )
 
     @app.get("/v1/metadata")
     async def metadata(request: Request):

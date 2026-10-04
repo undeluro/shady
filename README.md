@@ -4,6 +4,8 @@
 <h1 align="center">shady.</h1>
 <p align="center"><strong>A little shade goes a long way.</strong><br/>A cooler way to explore Kraków, one walk at a time.</p>
 
+<p align="center"><a href="https://shady-krakow.expo.app"><strong>Try Shady ↗</strong></a></p>
+
 <p align="center">
   <a href="#the-idea">The idea</a> · <a href="#try-shady">Try Shady</a> · <a href="#take-it-for-a-walk">Take it for a walk</a> · <a href="docs/TECHNICAL.md">Under the hood</a>
 </p>
@@ -27,29 +29,22 @@ Built for the hackathon, Shady plans walks across Kraków's connected public wal
 
 ## Try Shady
 
-You'll need **Node.js 22.13+**, **uv with Python 3.12**, and **Expo Go** on your phone. Connect the phone and laptop to the same Wi-Fi or hotspot.
+**Open [Shady](https://shady-krakow.expo.app) on your phone or laptop.** No installation needed. Choose a destination in Kraków, compare the two paths, and take the cooler way.
 
-**1. Start the city engine** in a terminal:
+The city engine can take about a minute to wake up after an idle period. For an instant hackathon preview, choose a **Saved demo** summer walk from the results sheet.
 
-```sh
-cd ~/Developer/shady/backend
-uv sync --locked
-uv run uvicorn shady.api:app --host 0.0.0.0 --port 8000 --no-access-log
-```
-
-The hackathon laptop already has the prepared city data. Give it about 20 seconds to load. On a fresh checkout, follow [city data setup](docs/TECHNICAL.md#rebuild-the-real-data) first—or try a saved walk without the backend.
-
-**2. Start the app** in another terminal:
+**Prefer the native app?** Install Expo Go on your iPhone and Node.js 22.13+ on your Mac, then:
 
 ```sh
 cd ~/Developer/shady/mobile
 npm ci
-EXPO_PUBLIC_API_URL=http://YOUR_MAC_WIFI_IP:8000 npx expo start --go --lan
+cp .env.example .env
+npx expo start --go --lan --clear
 ```
 
-On Mac, `ipconfig getifaddr en0` usually shows your Wi-Fi IP. Replace `YOUR_MAC_WIFI_IP` with it, scan the QR code with your iPhone Camera, and open Shady in Expo Go. Allow Local Network access if asked. If your Mac is also connected by Ethernet, see [phone setup](docs/TECHNICAL.md#run-on-a-phone) to advertise the Wi-Fi address explicitly.
+Keep the phone and Mac on the same Wi-Fi, scan the QR code with the iPhone Camera, and open it in Expo Go. The app uses our hosted city engine.
 
-Prefer the iOS simulator or a browser? See the [technical guide](docs/TECHNICAL.md#run-on-a-phone).
+[Local development and city data](docs/TECHNICAL.md) · [Hosting and deployment](docs/DEPLOYMENT.md)
 
 ## Take it for a walk
 
