@@ -4,7 +4,9 @@
 <h1 align="center">shady.</h1>
 <p align="center"><strong>A little shade goes a long way.</strong><br/>A cooler way to explore Kraków, one walk at a time.</p>
 
-<p align="center"><a href="https://shady-krakow.expo.app"><strong>Try Shady ↗</strong></a></p>
+<p align="center">
+  <a href="https://shady-krakow.expo.app"><strong>Try Shady ↗</strong></a> · <a href="https://youtu.be/28pamqOonlM"><strong>Watch the trailer ▶</strong></a>
+</p>
 
 <p align="center">
   <a href="#the-idea">The idea</a> · <a href="#try-shady">Try Shady</a> · <a href="#take-it-for-a-walk">Take it for a walk</a> · <a href="docs/TECHNICAL.md">Under the hood</a>
